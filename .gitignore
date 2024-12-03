@@ -1,0 +1,48 @@
+# Binaries for programs and plugins
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output of the go command
+/build/
+/bin/
+/out/
+
+# Dependency directories (for vendoring)
+vendor/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+
+# Logs
+*.log
+
+# Coverage files
+*.cover
+*.out
+
+# Generated files
+gen/
+
+# Local environment files
+.env
+.env.*
+
+# MacOS system files
+.DS_Store
+dist/
+
+# panther-cli specific filenames for config/state
+config.yml
