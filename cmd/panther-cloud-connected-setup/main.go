@@ -176,7 +176,7 @@ func checkCertificateStatus(ctx context.Context, cfg config.Config, stateManager
 
 	// Check log subdomain certificate
 	if certs.LogSubdomain != nil && !certs.LogSubdomain.IsIssued {
-		issued, err := certHelper.IsCertificateIssued(certs.LogSubdomain.CertificateArn)
+		issued, err := certHelper.IsCertificateIssued(certs.LogSubdomain.CertificateArn, false)
 		if err != nil {
 			return errors.Wrap(err, "failed to check log subdomain certificate status")
 		}
@@ -202,7 +202,7 @@ func checkCertificateStatus(ctx context.Context, cfg config.Config, stateManager
 
 	// Check panther subdomain certificate
 	if certs.PantherSubdomain != nil && !certs.PantherSubdomain.IsIssued {
-		issued, err := certHelper.IsCertificateIssued(certs.PantherSubdomain.CertificateArn)
+		issued, err := certHelper.IsCertificateIssued(certs.PantherSubdomain.CertificateArn, false)
 		if err != nil {
 			return errors.Wrap(err, "failed to check panther subdomain certificate status")
 		}
@@ -228,7 +228,7 @@ func checkCertificateStatus(ctx context.Context, cfg config.Config, stateManager
 
 	// Check wildcard certificate
 	if certs.WildcardSubdomain != nil && !certs.WildcardSubdomain.IsIssued {
-		issued, err := certHelper.IsCertificateIssued(certs.WildcardSubdomain.CertificateArn)
+		issued, err := certHelper.IsCertificateIssued(certs.WildcardSubdomain.CertificateArn, true)
 		if err != nil {
 			return errors.Wrap(err, "failed to check wildcard certificate status")
 		}
@@ -252,8 +252,10 @@ func checkCertificateStatus(ctx context.Context, cfg config.Config, stateManager
 		}
 	}
 
-	// If any certificates are not issued, print the DNS validation instructions again
-	if !certs.LogSubdomain.IsIssued || !certs.PantherSubdomain.IsIssued || !certs.WildcardSubdomain.IsIssued {
+	// If any certificates are not issued, print the DNS validation instructions
+	if (!certs.LogSubdomain.IsIssued && certs.LogSubdomain != nil) ||
+		(!certs.PantherSubdomain.IsIssued && certs.PantherSubdomain != nil) ||
+		(!certs.WildcardSubdomain.IsIssued && certs.WildcardSubdomain != nil) {
 		log.Println(
 			"\nSome certificates are still pending validation. Please ensure you have created the following DNS records:",
 		)

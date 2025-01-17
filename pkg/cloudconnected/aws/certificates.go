@@ -155,7 +155,7 @@ func (c *CertificateRegistrationHelper) RegisterLogSubdomainCertificate() (Certi
 		)
 	}
 
-	// Get validation details
+	// Get validation details using the configured region's client
 	validationDetails, err := c.getValidationDetails(*result.CertificateArn, c.client)
 	if err != nil {
 		return CertificateRegistrationResult{}, errors.Wrap(err, "failed to get validation details")
@@ -182,7 +182,7 @@ func (c *CertificateRegistrationHelper) RegisterPantherSubdomainCertificate() (C
 		)
 	}
 
-	// Get validation details
+	// Get validation details using the configured region's client
 	validationDetails, err := c.getValidationDetails(*result.CertificateArn, c.client)
 	if err != nil {
 		return CertificateRegistrationResult{}, errors.Wrap(err, "failed to get validation details")
@@ -228,12 +228,26 @@ func (c *CertificateRegistrationHelper) RegisterWildcardSubdomainCertificate() (
 }
 
 // IsCertificateIssued checks if the certificate with the given ARN has been issued
-func (c *CertificateRegistrationHelper) IsCertificateIssued(certificateArn string) (bool, error) {
+func (c *CertificateRegistrationHelper) IsCertificateIssued(certificateArn string, isWildcard bool) (bool, error) {
+	var client *acm.Client
+	var err error
+
+	if isWildcard {
+		// Use us-east-1 client for wildcard certificate
+		client, err = c.getACMClientForRegion("us-east-1")
+		if err != nil {
+			return false, errors.Wrap(err, "failed to create us-east-1 ACM client")
+		}
+	} else {
+		// Use configured region's client for other certificates
+		client = c.client
+	}
+
 	input := &acm.DescribeCertificateInput{
 		CertificateArn: aws.String(certificateArn),
 	}
 
-	result, err := c.client.DescribeCertificate(c.ctx, input)
+	result, err := client.DescribeCertificate(c.ctx, input)
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to describe certificate (%s)", certificateArn)
 	}
