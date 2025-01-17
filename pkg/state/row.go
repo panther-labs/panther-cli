@@ -69,6 +69,10 @@ type ReadinessCheckResults struct {
 	S3SelectEnabled                bool                     `json:"s3_select_enabled"`
 }
 
+func (r *ReadinessCheckResults) HasPassed() bool {
+	return r.S3SelectEnabled && len(r.DeploymentRoleReadinessResults) == 0
+}
+
 // Value implements the driver.Valuer interface for JSON storage
 func (r ReadinessCheckResults) Value() (driver.Value, error) {
 	return json.Marshal(r)

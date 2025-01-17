@@ -95,6 +95,9 @@ func main() {
 		if err := stateManager.UpdateAWSReadinessState(results); err != nil {
 			log.Fatalf("failed to update AWS readiness state: %v\n", err)
 		}
+		if !results.HasPassed() {
+			log.Fatalf("AWS readiness check failed")
+		}
 	} else {
 		log.Println("Skipping readiness check - already completed")
 	}
