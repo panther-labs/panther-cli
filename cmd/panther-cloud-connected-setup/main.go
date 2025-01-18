@@ -28,6 +28,11 @@ func main() {
 
 	ctx := context.Background()
 
+	// Handle show-last-run command
+	if a.ShowLastRun {
+		showLastRun(a.ConfigFile, a.JSONOutput)
+	}
+
 	cfg, err := config.NewConfigFromPath(a.ConfigFile)
 	if err != nil {
 		log.Fatalf("failed to load account configuration: %v\n", err)
@@ -54,7 +59,7 @@ func main() {
 
 	// Setup Snowflake if not already done
 	var createAcctRes snowflake.CreateAccountResult
-	if currentState.SnowflakeAccountDetails.AccountLocator == "" {
+	if currentState.SnowflakeAccountDetails.AccountName == "" {
 		createAcctRes, err = setupSnowflake(ctx, cfg)
 		if err != nil {
 			log.Fatalf("failed to setup Snowflake: %v\n", err)
@@ -124,6 +129,63 @@ func main() {
 			log.Fatalf("failed to check certificate status: %v\n", err)
 		}
 	}
+}
+
+func showLastRun(configFile string, jsonOutput bool) {
+	cfg, err := config.NewConfigFromPath(configFile)
+	if err != nil {
+		log.Fatalf("failed to load account configuration: %v\n", err)
+	}
+
+	stateManager, err := state.NewManager(cfg)
+	if err != nil {
+		log.Fatalf("failed to initialize state manager: %v\n", err)
+	}
+	defer stateManager.Close()
+
+	currentState := stateManager.GetState()
+
+	if jsonOutput {
+		// Use pp to output JSON with proper formatting
+		pp.SetDefaultOutput(os.Stdout)
+		pp.Println(currentState)
+		os.Exit(0)
+	}
+
+	// Print human-readable format
+	log.Printf("Snowflake Account Details:\n")
+	log.Printf("  Account Name: %s\n", currentState.SnowflakeAccountDetails.AccountName)
+	log.Printf("  URL: %s\n", currentState.SnowflakeAccountDetails.URL)
+	log.Printf("  Admin Username: %s\n", currentState.SnowflakeAdminUsername)
+	log.Printf("  Region: %s\n", currentState.SnowflakeAccountDetails.Region)
+	log.Printf("  Edition: %s\n", currentState.SnowflakeAccountDetails.Edition)
+
+	log.Printf("\nAWS Deployment Status:\n")
+	log.Printf("  Deployment Role Deployed: %v\n", currentState.AWSPantherDeploymentRoleDeployed)
+	log.Printf("  Bootstrap Tools Deployed: %v\n", currentState.AWSReadinessBootstrapToolsDeployed)
+	log.Printf("  Readiness Check Succeeded: %v\n", currentState.AWSReadinessCheckSucceeded)
+	log.Printf("  Snowflake Bootstrap Succeeded: %v\n", currentState.AWSSnowflakeBootstrapSucceeded)
+
+	if currentState.AWSCertificatesRequested {
+		log.Printf("\nCertificate Status:\n")
+		if currentState.AWSCertificatesResults.LogSubdomain != nil {
+			log.Printf("  Log Subdomain Certificate:\n")
+			log.Printf("    ARN: %s\n", currentState.AWSCertificatesResults.LogSubdomain.CertificateArn)
+			log.Printf("    Issued: %v\n", currentState.AWSCertificatesResults.LogSubdomain.IsIssued)
+		}
+		if currentState.AWSCertificatesResults.PantherSubdomain != nil {
+			log.Printf("  Panther Subdomain Certificate:\n")
+			log.Printf("    ARN: %s\n", currentState.AWSCertificatesResults.PantherSubdomain.CertificateArn)
+			log.Printf("    Issued: %v\n", currentState.AWSCertificatesResults.PantherSubdomain.IsIssued)
+		}
+		if currentState.AWSCertificatesResults.WildcardSubdomain != nil {
+			log.Printf("  Wildcard Certificate:\n")
+			log.Printf("    ARN: %s\n", currentState.AWSCertificatesResults.WildcardSubdomain.CertificateArn)
+			log.Printf("    Issued: %v\n", currentState.AWSCertificatesResults.WildcardSubdomain.IsIssued)
+		}
+	}
+
+	os.Exit(0)
 }
 
 func setupCertificates(ctx context.Context, cfg config.Config, stateManager *state.Manager) error {
