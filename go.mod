@@ -4,13 +4,13 @@ go 1.23
 
 require (
 	github.com/alexflint/go-arg v1.5.1
-	github.com/aws/aws-sdk-go-v2 v1.34.0
-	github.com/aws/aws-sdk-go-v2/config v1.29.2
-	github.com/aws/aws-sdk-go-v2/credentials v1.17.55
-	github.com/aws/aws-sdk-go-v2/service/acm v1.30.14
-	github.com/aws/aws-sdk-go-v2/service/cloudformation v1.56.8
-	github.com/aws/aws-sdk-go-v2/service/lambda v1.69.8
-	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.34.14
+	github.com/aws/aws-sdk-go-v2 v1.35.0
+	github.com/aws/aws-sdk-go-v2/config v1.29.3
+	github.com/aws/aws-sdk-go-v2/credentials v1.17.56
+	github.com/aws/aws-sdk-go-v2/service/acm v1.30.15
+	github.com/aws/aws-sdk-go-v2/service/cloudformation v1.56.9
+	github.com/aws/aws-sdk-go-v2/service/lambda v1.69.9
+	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.34.15
 	github.com/aws/smithy-go v1.22.2
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/go-playground/validator/v10 v10.24.0
@@ -18,7 +18,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/mcuadros/go-defaults v1.2.0
 	github.com/pkg/errors v0.9.1
-	github.com/snowflakedb/gosnowflake v1.12.1
+	github.com/snowflakedb/gosnowflake v1.13.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -33,20 +33,20 @@ require (
 	github.com/alexflint/go-scalar v1.2.0 // indirect
 	github.com/apache/arrow/go/v16 v16.1.0 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.8 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.25 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.54 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.29 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.29 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.26 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.56 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.30 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.30 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.2 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.3.29 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.3.30 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.2 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.5.3 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.10 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.18.10 // indirect
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.74.1 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.24.12 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.28.11 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.33.10 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.5.4 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.11 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.18.11 // indirect
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.75.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.24.13 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.28.12 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.33.11 // indirect
 	github.com/danieljoos/wincred v1.2.2 // indirect
 	github.com/dvsekhvalnov/jose2go v1.8.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
