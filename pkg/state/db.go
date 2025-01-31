@@ -2,8 +2,6 @@ package state
 
 import (
 	"database/sql"
-	"os"
-	"path/filepath"
 
 	_ "github.com/mattn/go-sqlite3" // we do not support any other SQL database
 	"github.com/pkg/errors"
@@ -30,20 +28,9 @@ type DB struct {
 	db *sql.DB
 }
 
-// NewDB creates a new database connection in the user's home directory
+// NewDB creates a new database connection in the current directory
 func NewDB() (*DB, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get user home directory")
-	}
-
-	dbDir := filepath.Join(homeDir, ".panther-cli")
-	if err := os.MkdirAll(dbDir, 0o755); err != nil {
-		return nil, errors.Wrap(err, "failed to create database directory")
-	}
-
-	dbPath := filepath.Join(dbDir, dbName)
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite3", dbName)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open database")
 	}
