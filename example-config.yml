@@ -1,0 +1,33 @@
+AWSConfig:
+  AccessKeyID: <YOUR AWS ACCESS KEY ID>
+  SecretAccessKey: <YOUR AWS SECRET ACCESS KEY>
+  Region: <YOUR AWS REGION>
+  CloudFormationConfig:
+    DeploymentRoleName: PantherDeploymentRole # WE RECOMMEND USING THIS VALUE
+    IdentityAccountId: <ASK FOR THIS INFORMATION FROM PANTHER>
+    OpsAccountId: <ASK FOR THIS INFORMATION FROM PANTHER>
+  DomainCertificateConfiguration:
+    PantherSubdomain: panther.yourdomain.com # THIS IS AN EXAMPLE, CHANGE IT TO YOUR DOMAIN
+
+SnowflakeOrgConfig:
+  AccountLocator: <YOUR SNOWFLAKE ACCOUNT LOCATOR> # https://docs.snowflake.com/en/user-guide/admin-account-identifier#format-2-account-locator-in-a-region
+  AccountRegion: <YOUR SNOWFLAKE ACCOUNT REGION> # Format this as an AWS region name - e.g. us-west-2
+  OrgAdminUsername: <YOUR ORGADMIN USERNAME>
+  # UPDATE THE PRIVATE KEY BELOW WITH YOUR SNOWFLAKE ORGADMIN PRIVATE KEY
+  OrgAdminPrivateKey: |
+    -----BEGIN PRIVATE KEY-----
+    MIIJQgIBADANBgkqhkiG9w0BAQEFAASCCSwwggkoAgEAAoICAQCKyXv4JtF3bE7I
+    GBc70Eo...
+    -----END PRIVATE KEY-----
+
+NewAccountConfig:
+  AccountName: <YOUR NEW SNOWFLAKE ACCOUNT NAME> # e.g. yourcompany-panther
+  AdminUsername: <YOUR NEW SNOWFLAKE ACCOUNT ADMIN USERNAME> # e.g. yourusername
+  AdminPassword: 123455678-DE3C-4F67-DDDD-1234asdfasdf! # replace with a strong password
+  AdminEmail: <YOUR ADMIN USER'S EMAIL>
+  SnowflakeEdition: ENTERPRISE # STANDARD, BUSINESS_CRITICAL, or ENTERPRISE - we recommend ENTERPRISE for full features
+  PantherEdition: ENTERPRISE # ESSENTIALS or ENTERPRISE - if this is ENTERPRISE, SnowflakeEdition must be ENTERPRISE
+  PantherRegion: <YOUR PANTHER REGION> # Format this as an AWS region name - e.g. us-west-2
+
+PantherAccountAdminConfig:
+  PantherAccountAdminPassword: 1231AADS-B686-4630-93DA-!@#1242342ss! # replace with a strong password

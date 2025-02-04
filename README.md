@@ -8,6 +8,13 @@ At the time of writing (February 2025), the following tooling is available:
 - `panther-cloud-connected-setup` - a tool for setting up new Snowflake and AWS accounts for a
   [Panther Cloud Connected][2] deployment.
 
+## Building the Tools
+
+This repository uses [`justfile`][6] in the same way one might use a Makefile. Useful commands
+can be found in the file, but most likely all you'll need is: `just bf`.
+
+Releases for the tool will be automated using [goreleaser][7].
+
 ## `panther-cloud-connected-setup`
 
 The `panther-cloud-connected-setup` tool automates the initial provisioning steps for Snowflake
@@ -75,3 +82,5 @@ The following subsection provides specific notes about the expectations the tool
 [3]: https://docs.panther.com/system-configuration/panther-deployment-types/cloud-connected/aws#step-8-provide-values-to-panther
 [4]: https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_scps.html
 [5]: https://docs.aws.amazon.com/audit-manager/latest/userguide/controltower.html
+[6]: https://just.systems/
+[7]: https://goreleaser.com/
