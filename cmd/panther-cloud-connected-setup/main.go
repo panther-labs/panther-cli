@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/alexflint/go-arg"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/aws"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/panther"
@@ -23,32 +22,7 @@ func init() {
 }
 
 func main() {
-	var a args
-	p := arg.MustParse(&a)
-
-	if a.Clean && a.ConfigFile != "" {
-		p.Fail("cannot specify both --clean and --config-file")
-	}
-
-	if !a.Clean && a.ConfigFile == "" && !a.ShowLastRun {
-		p.Fail("must specify a command")
-	}
-
-	ctx := context.Background()
-
-	// Handle clean command
-	if a.Clean {
-		if err := state.CleanState(); err != nil {
-			log.Fatalf("failed to clean state: %v\n", err)
-		}
-		log.Println("Successfully cleaned state")
-		os.Exit(0)
-	}
-
-	// Handle show-last-run command
-	if a.ShowLastRun {
-		showLastRun(a.ConfigFile, a.JSONOutput)
-	}
+	a := validateArgs()
 
 	cfg, err := config.NewConfigFromPath(a.ConfigFile)
 	if err != nil {
@@ -57,14 +31,6 @@ func main() {
 
 	util.LogDebugln(pp.Sprintln(cfg))
 
-	if a.Verbose {
-		os.Setenv("DEBUG", "true")
-	}
-
-	if a.VerboseSnowflakeLogging {
-		os.Setenv("SNOWFLAKE_DEBUG", "true")
-	}
-
 	// Initialize state manager
 	stateManager, err := state.NewManager(cfg)
 	if err != nil {
@@ -72,6 +38,7 @@ func main() {
 	}
 	defer stateManager.Close()
 
+	ctx := context.Background()
 	currentState := stateManager.GetState()
 
 	// Setup Snowflake if not already done
