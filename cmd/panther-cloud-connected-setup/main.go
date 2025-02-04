@@ -24,9 +24,26 @@ func init() {
 
 func main() {
 	var a args
-	arg.MustParse(&a)
+	p := arg.MustParse(&a)
+
+	if a.Clean && a.ConfigFile != "" {
+		p.Fail("cannot specify both --clean and --config-file")
+	}
+
+	if !a.Clean && a.ConfigFile == "" && !a.ShowLastRun {
+		p.Fail("must specify a command")
+	}
 
 	ctx := context.Background()
+
+	// Handle clean command
+	if a.Clean {
+		if err := state.CleanState(); err != nil {
+			log.Fatalf("failed to clean state: %v\n", err)
+		}
+		log.Println("Successfully cleaned state")
+		os.Exit(0)
+	}
 
 	// Handle show-last-run command
 	if a.ShowLastRun {
@@ -132,6 +149,10 @@ func main() {
 }
 
 func showLastRun(configFile string, jsonOutput bool) {
+	if !state.HasState() {
+		log.Fatalf("No state found. Run the setup process first to create state.")
+	}
+
 	cfg, err := config.NewConfigFromPath(configFile)
 	if err != nil {
 		log.Fatalf("failed to load account configuration: %v\n", err)

@@ -2,6 +2,7 @@ package state
 
 import (
 	"database/sql"
+	"os"
 
 	_ "github.com/mattn/go-sqlite3" // we do not support any other SQL database
 	"github.com/pkg/errors"
@@ -87,6 +88,39 @@ func (d *DB) GetState(configHash string) (*Row, error) {
 	}
 
 	return row, nil
+}
+
+// HasState checks if the state database file exists and has any state
+func HasState() bool {
+	if _, err := os.Stat(dbName); os.IsNotExist(err) {
+		return false
+	}
+
+	// Open database to check if it has any rows
+	db, err := sql.Open("sqlite3", dbName)
+	if err != nil {
+		return false
+	}
+	defer db.Close()
+
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM execution_state").Scan(&count)
+	if err != nil || count == 0 {
+		return false
+	}
+
+	return true
+}
+
+// CleanState removes the state database file
+func CleanState() error {
+	if err := os.Remove(dbName); err != nil {
+		if !os.IsNotExist(err) {
+			return errors.Wrap(err, "failed to remove state database")
+		}
+		return nil
+	}
+	return nil
 }
 
 // SaveState saves or updates the execution state
