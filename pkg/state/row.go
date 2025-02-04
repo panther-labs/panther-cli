@@ -44,7 +44,6 @@ type CertificateRecord struct {
 
 // CertificateResults stores the results of certificate registration
 type CertificateResults struct {
-	LogSubdomain      *CertificateRecord `json:"logSubdomain,omitempty"`
 	PantherSubdomain  *CertificateRecord `json:"pantherSubdomain,omitempty"`
 	WildcardSubdomain *CertificateRecord `json:"wildcardSubdomain,omitempty"`
 }

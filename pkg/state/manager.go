@@ -126,8 +126,6 @@ func (m *Manager) UpdateCertificateState(
 	}
 
 	switch certType {
-	case "log":
-		m.state.AWSCertificatesResults.LogSubdomain = certRecord
 	case "panther":
 		m.state.AWSCertificatesResults.PantherSubdomain = certRecord
 	case "wildcard":

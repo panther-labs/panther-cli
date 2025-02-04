@@ -140,33 +140,6 @@ func (c *CertificateRegistrationHelper) getValidationDetails(
 	)
 }
 
-func (c *CertificateRegistrationHelper) RegisterLogSubdomainCertificate() (CertificateRegistrationResult, error) {
-	input := &acm.RequestCertificateInput{
-		DomainName:       aws.String(c.cfg.AWSConfig.DomainCertificateConfiguration.LogSubdomain),
-		ValidationMethod: types.ValidationMethodDns,
-	}
-
-	result, err := c.client.RequestCertificate(c.ctx, input)
-	if err != nil {
-		return CertificateRegistrationResult{}, errors.Wrapf(
-			err,
-			"failed to request certificate for log subdomain (%s)",
-			c.cfg.AWSConfig.DomainCertificateConfiguration.LogSubdomain,
-		)
-	}
-
-	// Get validation details using the configured region's client
-	validationDetails, err := c.getValidationDetails(*result.CertificateArn, c.client)
-	if err != nil {
-		return CertificateRegistrationResult{}, errors.Wrap(err, "failed to get validation details")
-	}
-
-	return CertificateRegistrationResult{
-		CertificateArn:    *result.CertificateArn,
-		ValidationDetails: validationDetails,
-	}, nil
-}
-
 func (c *CertificateRegistrationHelper) RegisterPantherSubdomainCertificate() (CertificateRegistrationResult, error) {
 	input := &acm.RequestCertificateInput{
 		DomainName:       aws.String(c.cfg.AWSConfig.DomainCertificateConfiguration.PantherSubdomain),

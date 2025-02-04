@@ -168,11 +168,6 @@ func showLastRun(configFile string, jsonOutput bool) {
 
 	if currentState.AWSCertificatesRequested {
 		log.Printf("\nCertificate Status:\n")
-		if currentState.AWSCertificatesResults.LogSubdomain != nil {
-			log.Printf("  Log Subdomain Certificate:\n")
-			log.Printf("    ARN: %s\n", currentState.AWSCertificatesResults.LogSubdomain.CertificateArn)
-			log.Printf("    Issued: %v\n", currentState.AWSCertificatesResults.LogSubdomain.IsIssued)
-		}
 		if currentState.AWSCertificatesResults.PantherSubdomain != nil {
 			log.Printf("  Panther Subdomain Certificate:\n")
 			log.Printf("    ARN: %s\n", currentState.AWSCertificatesResults.PantherSubdomain.CertificateArn)
@@ -192,16 +187,6 @@ func setupCertificates(ctx context.Context, cfg config.Config, stateManager *sta
 	certHelper, err := aws.NewCertificateRegistrationHelper(ctx, cfg)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize certificate registration helper")
-	}
-
-	// Register log subdomain certificate
-	logResult, err := certHelper.RegisterLogSubdomainCertificate()
-	if err != nil {
-		return errors.Wrap(err, "failed to register log subdomain certificate")
-	}
-	log.Printf("Registered log subdomain certificate:\n%s\n", pp.Sprintln(logResult))
-	if err := stateManager.UpdateCertificateState("log", logResult, false); err != nil {
-		return errors.Wrap(err, "failed to update log certificate state")
 	}
 
 	// Register panther subdomain certificate
@@ -238,32 +223,6 @@ func checkCertificateStatus(ctx context.Context, cfg config.Config, stateManager
 
 	state := stateManager.GetState()
 	certs := state.AWSCertificatesResults
-
-	// Check log subdomain certificate
-	if certs.LogSubdomain != nil && !certs.LogSubdomain.IsIssued {
-		issued, err := certHelper.IsCertificateIssued(certs.LogSubdomain.CertificateArn, false)
-		if err != nil {
-			return errors.Wrap(err, "failed to check log subdomain certificate status")
-		}
-		if issued {
-			if err := stateManager.UpdateCertificateState(
-				"log",
-				aws.CertificateRegistrationResult{
-					CertificateArn: certs.LogSubdomain.CertificateArn,
-					ValidationDetails: aws.CertificateValidationDetails{
-						DomainName:  certs.LogSubdomain.ValidationDetails.DomainName,
-						RecordName:  certs.LogSubdomain.ValidationDetails.RecordName,
-						RecordValue: certs.LogSubdomain.ValidationDetails.RecordValue,
-						RecordType:  certs.LogSubdomain.ValidationDetails.RecordType,
-					},
-				},
-				true,
-			); err != nil {
-				return errors.Wrap(err, "failed to update log certificate state")
-			}
-			log.Println("Log subdomain certificate has been issued")
-		}
-	}
 
 	// Check panther subdomain certificate
 	if certs.PantherSubdomain != nil && !certs.PantherSubdomain.IsIssued {
@@ -318,8 +277,7 @@ func checkCertificateStatus(ctx context.Context, cfg config.Config, stateManager
 	}
 
 	// If any certificates are not issued, print the DNS validation instructions
-	if (!certs.LogSubdomain.IsIssued && certs.LogSubdomain != nil) ||
-		(!certs.PantherSubdomain.IsIssued && certs.PantherSubdomain != nil) ||
+	if (!certs.PantherSubdomain.IsIssued && certs.PantherSubdomain != nil) ||
 		(!certs.WildcardSubdomain.IsIssued && certs.WildcardSubdomain != nil) {
 		log.Println(
 			"\nSome certificates are still pending validation. Please ensure you have created the following DNS records:",
@@ -331,16 +289,6 @@ func checkCertificateStatus(ctx context.Context, cfg config.Config, stateManager
 }
 
 func printDNSValidationInstructions(certs state.CertificateResults) {
-	if certs.LogSubdomain != nil {
-		log.Printf(
-			"\nFor Log Subdomain (%s), create a DNS record with the following information:\n",
-			certs.LogSubdomain.ValidationDetails.DomainName,
-		)
-		log.Printf("  Record Type:  %s\n", certs.LogSubdomain.ValidationDetails.RecordType)
-		log.Printf("  Record Name:  %s\n", certs.LogSubdomain.ValidationDetails.RecordName)
-		log.Printf("  Record Value: %s\n", certs.LogSubdomain.ValidationDetails.RecordValue)
-	}
-
 	if certs.PantherSubdomain != nil {
 		log.Printf(
 			"\nFor Panther Subdomain (%s), create a DNS record with the following information:\n",

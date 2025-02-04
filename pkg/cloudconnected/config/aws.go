@@ -23,5 +23,4 @@ type CloudFormationConfig struct {
 
 type DomainCertificateConfiguration struct {
 	PantherSubdomain string `yaml:"PantherSubdomain" validate:"required,fqdn"`
-	LogSubdomain     string `yaml:"LogSubdomain"     validate:"required,fqdn"`
 }
