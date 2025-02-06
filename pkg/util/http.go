@@ -12,7 +12,7 @@ import (
 // if the HTTP request takes longer than 30 seconds, something terrible has happened
 const httpTimeout = 30 * time.Second
 
-func GetURLAsString(ctx context.Context, url string) (string, error) {
+func getURLAsString(ctx context.Context, url string) (string, error) {
 	ctxCancellable, cancel := context.WithTimeout(ctx, httpTimeout)
 	defer cancel()
 

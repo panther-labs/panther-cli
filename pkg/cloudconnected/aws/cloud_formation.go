@@ -37,7 +37,7 @@ func NewCloudFormation(ctx context.Context, cfg config.AWSConfig) (*CloudFormati
 }
 
 func (c *CloudFormation) ApplyDeploymentRole() error {
-	templateContent, err := util.GetURLAsString(c.ctx, c.cfg.CloudFormationConfig.DeploymentRoleTemplateURL)
+	templateContent, err := util.LoadContent(c.ctx, c.cfg.CloudFormationConfig.DeploymentRoleTemplateURL)
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch CloudFormation template for deployment role")
 	}
@@ -65,7 +65,7 @@ func (c *CloudFormation) ApplyDeploymentRole() error {
 func (c *CloudFormation) ApplyPreDeploymentTools() error {
 	templateURL := fmt.Sprintf(c.cfg.CloudFormationConfig.PreDeploymentToolsTemplateURL, c.cfg.Region)
 
-	templateContent, err := util.GetURLAsString(c.ctx, templateURL)
+	templateContent, err := util.LoadContent(c.ctx, templateURL)
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch CloudFormation template for pre-deployment tools")
 	}
