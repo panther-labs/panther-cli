@@ -23,7 +23,10 @@ func formatSnowflakeDSNFromSnowflakeOrgConfig(cfg config.SnowflakeOrgConfig) str
 		log.Fatalf("failed to parse RSA private key for Snowflake ORGADMIN credentials: %s", err.Error())
 	}
 
-	log.Printf("Using private key with public key:\n%v", util.MustFormatPublicKeyFromPrivateKey(parsedPrivateKey))
+	log.Printf(
+		"Connecting to Snowflake using private key with public key:\n%v",
+		util.MustFormatPublicKeyFromPrivateKey(parsedPrivateKey),
+	)
 
 	connConfig := &gosnowflake.Config{
 		Account:       cfg.AccountLocator,
