@@ -1,5 +1,6 @@
 alias b := build
 alias bf := build-full
+alias bfu := build-full-upgrade
 alias bc := build-clean
 alias c := clean
 alias l := lint
@@ -18,7 +19,12 @@ copy-config:
 
 build-full: deps lint fmt build
 
+build-full-upgrade: deps-upgrade lint fmt build
+
 deps:
+    go get ./...
+
+deps-upgrade:
     go get -u ./...
     go mod tidy
 
@@ -32,7 +38,7 @@ clean:
     rm -rf ./bin/
     rm -rf ./dist/
 
-build-clean: clean build-full
+build-clean: clean build-full-upgrade
 
 run-panther-cloud-connected-setup: build
     ./bin/panther-cloud-connected-setup/panther-cloud-connected-setup --config-file config.yml --verbose
