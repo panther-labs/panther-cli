@@ -33,6 +33,43 @@ and AWS for new Cloud Connected Deployments. Specifically, it automates many of 
 These steps are straightforward but complex and error prone. This tool aims to reduce the
 friction of setting up a new Cloud Connected account, wherever possible.
 
+### Using `panther-cloud-connected-setup`
+
+To use the tool, you'll need to create a config file. We've provided an example config file
+here: [example-config.yml](example-config.yml).
+
+#### Running the Tool with a Config
+
+```bash
+./panther-cloud-connected-setup --config-file config.yml
+```
+
+#### With Verbose Logging
+
+```bash
+./panther-cloud-connected-setup --config-file config.yml --verbose
+```
+
+#### With Verbose *Snowflake* Logging
+
+```bash
+./panther-cloud-connected-setup --config-file config.yml --snowflake-logging
+```
+
+#### Show Last Run's Results
+
+```bash
+./panther-cloud-connected-setup --show-last-run
+```
+
+
+#### Cleaning Local State
+
+```bash
+./panther-cloud-connected-setup --clean
+```
+
+
 ### Important Notes about `panther-cloud-connected-setup`
 
 - The tool performs all of the above operations from your local machine OR within *your*
