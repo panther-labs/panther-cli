@@ -46,3 +46,6 @@ dist/
 
 # panther-cli specific filenames for config/state
 config.yml
+
+# test resources like local templates
+*-template.yml
