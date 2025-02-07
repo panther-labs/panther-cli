@@ -41,6 +41,12 @@ func NewDB() (*DB, error) {
 		return nil, errors.Wrap(err, "failed to create table")
 	}
 
+	// Ensure durability by setting synchronous mode to FULL
+	if _, err := db.Exec("PRAGMA synchronous=FULL"); err != nil {
+		db.Close()
+		return nil, errors.Wrap(err, "failed to set synchronous mode")
+	}
+
 	return &DB{db: db}, nil
 }
 
@@ -164,6 +170,11 @@ func (d *DB) SaveState(row *Row) error {
 	)
 	if err != nil {
 		return errors.Wrap(err, "failed to save state")
+	}
+
+	// Force an fsync to ensure data is written to disk
+	if err := d.db.QueryRow("PRAGMA wal_checkpoint(FULL)").Err(); err != nil {
+		return errors.Wrap(err, "failed to checkpoint WAL")
 	}
 
 	return nil
