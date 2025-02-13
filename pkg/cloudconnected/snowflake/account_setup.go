@@ -3,11 +3,14 @@ package snowflake
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
+	"strings"
+
+	"github.com/pkg/errors"
 
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
 	"github.com/panther-labs/panther-cli/pkg/util"
-	"github.com/pkg/errors"
 
 	"github.com/cenkalti/backoff/v4"
 )
@@ -75,7 +78,8 @@ func (a *AccountSetup) switchToSecurityAdminRole() error {
 		return errors.New("not connected to Snowflake")
 	}
 
-	a.conn, err := a.sql.Conn(context.Background())
+	var err error
+	a.conn, err = a.sql.Conn(context.Background())
 	if err != nil {
 		return errors.Wrap(err, "failed to get connection from pool")
 	}
@@ -84,7 +88,7 @@ func (a *AccountSetup) switchToSecurityAdminRole() error {
 	const query = "USE ROLE SECURITYADMIN;"
 
 	// Execute the query
-	_, err := a.conn.Exec(query)
+	_, err = a.conn.ExecContext(a.ctx, query)
 	if err != nil {
 		return errors.Wrap(err, "failed to switch to SECURITYADMIN role")
 	}
@@ -127,7 +131,7 @@ func (a *AccountSetup) SetupCustomerAccountAdminUser(cfg config.NewAccountConfig
 		return errors.Wrapf(err, "error scanning result from CREATE USER query")
 	}
 
-	const expectedCreateUserResult = fmt.Sprintf("User %s successfully created.", cfg.AdminUsername)
+	expectedCreateUserResult := fmt.Sprintf("User %s successfully created.", cfg.AdminUsername)
 	if !strings.EqualFold(result, expectedCreateUserResult) {
 		return errors.Errorf("unexpected result when creating %s: %s", cfg.AdminUsername, result)
 	}
@@ -139,7 +143,7 @@ func (a *AccountSetup) SetupCustomerAccountAdminUser(cfg config.NewAccountConfig
 
 	grantRolesRow := a.conn.QueryRowContext(
 		a.ctx,
-		fmt.Sprintf(grantQuery, cfg.AdminUsername)
+		fmt.Sprintf(grantQuery, cfg.AdminUsername),
 	)
 
 	if err := grantRolesRow.Scan(&result); err != nil {
