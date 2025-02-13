@@ -11,10 +11,9 @@ import (
 )
 
 type Config struct {
-	SnowflakeOrgConfig        SnowflakeOrgConfig        `yaml:"SnowflakeOrgConfig"        validate:"required"`
-	NewAccountConfig          NewAccountConfig          `yaml:"NewAccountConfig"          validate:"required"`
-	PantherAccountAdminConfig PantherAccountAdminConfig `yaml:"PantherAccountAdminConfig" validate:"required"`
-	AWSConfig                 AWSConfig                 `yaml:"AWSConfig"                 validate:"required"`
+	SnowflakeOrgConfig SnowflakeOrgConfig `yaml:"SnowflakeOrgConfig"        validate:"required"`
+	NewAccountConfig   NewAccountConfig   `yaml:"NewAccountConfig"          validate:"required"`
+	AWSConfig          AWSConfig          `yaml:"AWSConfig"                 validate:"required"`
 }
 
 func (c Config) validate() error {

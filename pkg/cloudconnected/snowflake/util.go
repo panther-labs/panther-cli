@@ -1,40 +1,46 @@
 package snowflake
 
 import (
+	"crypto/rsa"
 	"fmt"
 	"log"
 	"os"
 	"time"
 
-	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
-	"github.com/panther-labs/panther-cli/pkg/util"
 	"github.com/snowflakedb/gosnowflake"
+
+	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
+	"github.com/panther-labs/panther-cli/pkg/rsapem"
 
 	"github.com/cenkalti/backoff/v4"
 )
 
 // formatSnowflakeDSNFromSnowflakeOrgConfig generates a DSN string for the Snowflake connection
 func formatSnowflakeDSNFromSnowflakeOrgConfig(cfg config.SnowflakeOrgConfig) string {
-	const hostFormat = "%s.%s.snowflakecomputing.com"
-	host := fmt.Sprintf(hostFormat, cfg.AccountLocator, cfg.AccountRegion)
-
-	parsedPrivateKey, err := util.ParseRSAPEMPrivateKey(cfg.OrgAdminPrivateKey)
+	parsedPrivateKey, err := rsapem.ParseRSAPEMPrivateKey(cfg.OrgAdminPrivateKey)
 	if err != nil {
 		log.Fatalf("failed to parse RSA private key for Snowflake ORGADMIN credentials: %s", err.Error())
 	}
+	return formatSnowflakeDSNFromRSAKey(cfg.AccountRegion, cfg.AccountLocator, cfg.OrgAdminUsername, parsedPrivateKey)
+}
+
+// formatSnowflakeDSNFromRSAKey uses gosnowflake to generate a JWT-based connection string
+func formatSnowflakeDSNFromRSAKey(region, locator, username string, key *rsa.PrivateKey) string {
+	const hostFormat = "%s.%s.snowflakecomputing.com"
+	host := fmt.Sprintf(hostFormat, locator, region)
 
 	log.Printf(
 		"Connecting to Snowflake using private key with public key:\n%v",
-		util.MustFormatPublicKeyFromPrivateKey(parsedPrivateKey),
+		rsapem.MustFormatPublicKey(key),
 	)
 
 	connConfig := &gosnowflake.Config{
-		Account:       cfg.AccountLocator,
-		Region:        cfg.AccountRegion,
+		Account:       locator,
+		Region:        region,
 		Host:          host,
 		Authenticator: gosnowflake.AuthTypeJwt,
-		User:          cfg.OrgAdminUsername,
-		PrivateKey:    parsedPrivateKey,
+		User:          username,
+		PrivateKey:    key,
 		Role:          "ORGADMIN",
 	}
 

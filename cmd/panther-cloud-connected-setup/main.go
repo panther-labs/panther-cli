@@ -298,6 +298,9 @@ func printDNSValidationInstructions(certs state.CertificateResults) {
 	}
 }
 
+// Uses orgadmin (provided with RSA key) to create a new account whose first admin user is
+// PANTHERACCOUNTADMIN with a newly generated RSA key.
+// Then creates a type=person admin user for the customer based on the provided config.
 func setupSnowflake(ctx context.Context, cfg config.Config) (snowflake.CreateAccountResult, error) {
 	snow := snowflake.AccountCreate{}
 
@@ -315,7 +318,7 @@ func setupSnowflake(ctx context.Context, cfg config.Config) (snowflake.CreateAcc
 
 	snowAcctSetup := snowflake.AccountSetup{}
 
-	if err := snowAcctSetup.Connect(ctx, createAcctRes, cfg.NewAccountConfig.AdminUsername, cfg.NewAccountConfig.AdminPassword); err != nil {
+	if err := snowAcctSetup.Connect(ctx, createAcctRes, "PANTHERACCOUNTADMIN"); err != nil {
 		return snowflake.CreateAccountResult{}, errors.Wrap(err, "failed to connect to new Snowflake account")
 	}
 	defer snowAcctSetup.Close()

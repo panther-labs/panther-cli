@@ -1,6 +1,7 @@
 package snowflake
 
 import (
+	"crypto/rsa"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -15,6 +16,7 @@ type CreateAccountResult struct {
 	RegionGroup       string `json:"regionGroup"`
 	Cloud             string `json:"cloud"`
 	Region            string `json:"region"`
+	AdminRSAKey       *rsa.PrivateKey
 }
 
 func (c CreateAccountResult) GetAWSRegion() string {
