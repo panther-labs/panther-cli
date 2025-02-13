@@ -16,9 +16,9 @@ import (
 // SNOWFLAKE_HOST, SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, and SNOWFLAKE_PASSWORD
 // environment variables for now.
 type AccountSetup struct {
-	sql *sql.DB
+	sql  *sql.DB
 	conn *sql.Conn
-	ctx context.Context
+	ctx  context.Context
 }
 
 func (a *AccountSetup) Connect(ctx context.Context, cfg CreateAccountResult) error {
@@ -75,7 +75,7 @@ func (a *AccountSetup) switchToSecurityAdminRole() error {
 		return errors.New("not connected to Snowflake")
 	}
 
-	a.conn, err := a.sql.Conn(ctx context.Context)()
+	a.conn, err := a.sql.Conn(context.Background())
 	if err != nil {
 		return errors.Wrap(err, "failed to get connection from pool")
 	}
@@ -139,14 +139,14 @@ func (a *AccountSetup) SetupCustomerAccountAdminUser(cfg config.NewAccountConfig
 
 	grantRolesRow := a.conn.QueryRowContext(
 		a.ctx,
-		fmt.Sprintf(grantQuery, cfg.AdminUsername),
+		fmt.Sprintf(grantQuery, cfg.AdminUsername)
 	)
 
 	if err := grantRolesRow.Scan(&result); err != nil {
 		return errors.Wrapf(err, "error scanning result from GRANT ROLE query")
 	}
 
-	log.Printf("Granted roles to '%s' user: %+v", cfg.AdminUsername result)
+	log.Printf("Granted roles to '%s' user: %+v", cfg.AdminUsername, result)
 
 	return nil
 }

@@ -318,12 +318,12 @@ func setupSnowflake(ctx context.Context, cfg config.Config) (snowflake.CreateAcc
 
 	snowAcctSetup := snowflake.AccountSetup{}
 
-	if err := snowAcctSetup.Connect(ctx, createAcctRes, "PANTHERACCOUNTADMIN"); err != nil {
+	if err := snowAcctSetup.Connect(ctx, createAcctRes); err != nil {
 		return snowflake.CreateAccountResult{}, errors.Wrap(err, "failed to connect to new Snowflake account")
 	}
 	defer snowAcctSetup.Close()
 
-	if err := snowAcctSetup.SetupPantherAccountAdminUser(cfg.PantherAccountAdminConfig); err != nil {
+	if err := snowAcctSetup.SetupCustomerAccountAdminUser(cfg.NewAccountConfig); err != nil {
 		return snowflake.CreateAccountResult{}, errors.Wrap(err, "failed to setup Panther account admin user")
 	}
 
