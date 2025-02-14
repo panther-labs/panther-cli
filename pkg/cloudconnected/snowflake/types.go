@@ -8,15 +8,15 @@ import (
 )
 
 type CreateAccountResult struct {
-	AccountLocator    string `json:"accountLocator"`
-	AccountLocatorURL string `json:"accountLocatorURL"`
-	AccountName       string `json:"accountName"`
-	URL               string `json:"url"`
-	Edition           string `json:"edition"`
-	RegionGroup       string `json:"regionGroup"`
-	Cloud             string `json:"cloud"`
-	Region            string `json:"region"`
-	AdminRSAKey       *rsa.PrivateKey
+	AccountLocator    string          `json:"accountLocator"`
+	AccountLocatorURL string          `json:"accountLocatorURL"`
+	AccountName       string          `json:"accountName"`
+	URL               string          `json:"url"`
+	Edition           string          `json:"edition"`
+	RegionGroup       string          `json:"regionGroup"`
+	Cloud             string          `json:"cloud"`
+	Region            string          `json:"region"`
+	AdminRSAKey       *rsa.PrivateKey `json:"-"`
 }
 
 func (c CreateAccountResult) GetAWSRegion() string {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/k0kubun/pp/v3"
 	"github.com/pkg/errors"
 
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
@@ -90,7 +91,6 @@ func (a *AccountCreate) CreateNewSnowflakeAccount(cfg config.NewAccountConfig) (
 	if err != nil {
 		return CreateAccountResult{}, errors.Wrap(err, "failed to encode PANTHERACCOUNTADMIN RSA public key")
 	}
-	createAcctRes.AdminRSAKey = key.PrivateKey
 
 	const query = `
 CREATE ACCOUNT %s
@@ -98,6 +98,7 @@ CREATE ACCOUNT %s
   ADMIN_RSA_PUBLIC_KEY = ?
   ADMIN_USER_TYPE = 'SERVICE'
   MUST_CHANGE_PASSWORD = FALSE
+  EMAIL = 'eng-core-infra@runpanther.io'
   EDITION = ?
   REGION = ?
   COMMENT = 'Panther Snowflake Cloud Connected Production Environment';
@@ -121,7 +122,9 @@ CREATE ACCOUNT %s
 		return createAcctRes, errors.Wrap(err, "error unmarshalling of CREATE ACCOUNT output")
 	}
 
-	log.Printf("Created new Snowflake account: %+v", createAcctRes)
+	log.Printf("Created new Snowflake account: %v", pp.Sprintln(createAcctRes))
+	// log before adding the RSA key to the result
+	createAcctRes.AdminRSAKey = key.PrivateKey
 
 	return createAcctRes, nil
 }

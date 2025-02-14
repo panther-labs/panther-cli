@@ -314,8 +314,6 @@ func setupSnowflake(ctx context.Context, cfg config.Config) (snowflake.CreateAcc
 		return snowflake.CreateAccountResult{}, errors.Wrap(err, "failed to create new Snowflake account")
 	}
 
-	log.Println(pp.Sprintln(createAcctRes))
-
 	snowAcctSetup := snowflake.AccountSetup{}
 
 	if err := snowAcctSetup.Connect(ctx, createAcctRes); err != nil {

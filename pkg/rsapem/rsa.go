@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	PantherRSABitSize = 4096
+	pantherRSABitSize = 4096
 )
 
 // RSA Key Functions to interoperate with Snowflake key pair auth https://docs.snowflake.com/en/user-guide/key-pair-auth
@@ -33,9 +33,9 @@ type KeyPair struct {
 }
 
 func GenerateKeyPair() (*KeyPair, error) {
-	key, err := rsa.GenerateKey(rand.Reader, PantherRSABitSize)
+	key, err := rsa.GenerateKey(rand.Reader, pantherRSABitSize)
 	if err != nil {
-		return nil, errors.Wrapf(err, "generating %d bit RSA keypair", PantherRSABitSize)
+		return nil, errors.Wrapf(err, "generating %d bit RSA keypair", pantherRSABitSize)
 	}
 	return &KeyPair{
 		PrivateKey: key,

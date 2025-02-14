@@ -15,9 +15,6 @@ import (
 	"github.com/cenkalti/backoff/v4"
 )
 
-// Configuration for Snowflake connection is by using the
-// SNOWFLAKE_HOST, SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, and SNOWFLAKE_PASSWORD
-// environment variables for now.
 type AccountSetup struct {
 	sql  *sql.DB
 	conn *sql.Conn
@@ -27,7 +24,7 @@ type AccountSetup struct {
 func (a *AccountSetup) Connect(ctx context.Context, cfg CreateAccountResult) error {
 	tryEnableSnowflakeDebugLogging()
 
-	dsn := formatSnowflakeDSNFromRSAKey(cfg.AccountLocator, cfg.GetAWSRegion(), "PANTHERACCOUNTADMIN", cfg.AdminRSAKey)
+	dsn := formatSnowflakeDSNFromRSAKey(cfg.GetAWSRegion(), cfg.AccountLocator, "PANTHERACCOUNTADMIN", "ACCOUNTADMIN", cfg.AdminRSAKey)
 	util.LogDebugf("Connecting to Snowflake with DSN: %s", dsn)
 
 	// It can take a little while for a new Snowflake account to
@@ -72,7 +69,7 @@ func (a *AccountSetup) isConnected() bool {
 	return a.sql != nil && a.sql.Ping() == nil
 }
 
-// creats a conn and sets the role; needed to guarantee the role is used on subsequent queries
+// creates a conn and sets the role; needed to guarantee the role is used on subsequent queries
 func (a *AccountSetup) switchToSecurityAdminRole() error {
 	if !a.isConnected() {
 		return errors.New("not connected to Snowflake")
@@ -136,7 +133,7 @@ func (a *AccountSetup) SetupCustomerAccountAdminUser(cfg config.NewAccountConfig
 		return errors.Errorf("unexpected result when creating %s: %s", cfg.AdminUsername, result)
 	}
 
-	log.Println("Created new Snowflake '%s' user", cfg.AdminUsername)
+	log.Printf("Created new Snowflake '%s' user (%s)", cfg.AdminUsername, cfg.AdminEmail)
 
 	// grant the necessary roles to PANTHERACCOUNTADMIN
 	const grantQuery = `GRANT ROLE SYSADMIN, SECURITYADMIN, ACCOUNTADMIN TO USER %s;`
@@ -150,7 +147,7 @@ func (a *AccountSetup) SetupCustomerAccountAdminUser(cfg config.NewAccountConfig
 		return errors.Wrapf(err, "error scanning result from GRANT ROLE query")
 	}
 
-	log.Printf("Granted roles to '%s' user: %+v", cfg.AdminUsername, result)
+	log.Printf("Granted roles SYSADMIN, SECURITYADMIN, ACCOUNTADMIN to '%s' user: %+v", cfg.AdminUsername, result)
 
 	return nil
 }

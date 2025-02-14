@@ -21,11 +21,11 @@ func formatSnowflakeDSNFromSnowflakeOrgConfig(cfg config.SnowflakeOrgConfig) str
 	if err != nil {
 		log.Fatalf("failed to parse RSA private key for Snowflake ORGADMIN credentials: %s", err.Error())
 	}
-	return formatSnowflakeDSNFromRSAKey(cfg.AccountRegion, cfg.AccountLocator, cfg.OrgAdminUsername, parsedPrivateKey)
+	return formatSnowflakeDSNFromRSAKey(cfg.AccountRegion, cfg.AccountLocator, cfg.OrgAdminUsername, "ORGADMIN", parsedPrivateKey)
 }
 
 // formatSnowflakeDSNFromRSAKey uses gosnowflake to generate a JWT-based connection string
-func formatSnowflakeDSNFromRSAKey(region, locator, username string, key *rsa.PrivateKey) string {
+func formatSnowflakeDSNFromRSAKey(region, locator, username, role string, key *rsa.PrivateKey) string {
 	const hostFormat = "%s.%s.snowflakecomputing.com"
 	host := fmt.Sprintf(hostFormat, locator, region)
 
@@ -41,7 +41,7 @@ func formatSnowflakeDSNFromRSAKey(region, locator, username string, key *rsa.Pri
 		Authenticator: gosnowflake.AuthTypeJwt,
 		User:          username,
 		PrivateKey:    key,
-		Role:          "ORGADMIN",
+		Role:          role,
 	}
 
 	dsn, err := gosnowflake.DSN(connConfig)
