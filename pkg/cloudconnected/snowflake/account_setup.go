@@ -108,7 +108,7 @@ func (a *AccountSetup) SetupCustomerAccountAdminUser(cfg config.NewAccountConfig
 	a.mustSwitchToSecurityAdminRole()
 
 	// create the customer's accountadmin user
-	const createUserQuery = `CREATE USER %s
+	const createUserQuery = `CREATE USER IF NOT EXISTS %s
   PASSWORD = ?
   EMAIL = ?
   TYPE = 'PERSON'

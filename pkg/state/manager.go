@@ -5,10 +5,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 
+	"github.com/pkg/errors"
+
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/aws"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/snowflake"
-	"github.com/pkg/errors"
 )
 
 // Manager handles state operations for the setup process

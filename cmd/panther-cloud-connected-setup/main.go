@@ -44,7 +44,7 @@ func main() {
 	// Setup Snowflake if not already done
 	var createAcctRes snowflake.CreateAccountResult
 	if currentState.SnowflakeAccountDetails.AccountName == "" {
-		createAcctRes, err = setupSnowflake(ctx, cfg)
+		createAcctRes, err = setupSnowflakeAccount(ctx, cfg)
 		if err != nil {
 			log.Fatalf("failed to setup Snowflake: %v\n", err)
 		}
@@ -58,6 +58,11 @@ func main() {
 	} else {
 		createAcctRes = currentState.SnowflakeAccountDetails.CreateAccountResult
 		log.Println("Using existing Snowflake setup")
+	}
+	// idempotent, fine to run again if this is restarting from state
+	err = snowflakeAdminUserSetup(ctx, createAcctRes, cfg)
+	if err != nil {
+		log.Fatalf("failed to create Snowflake admin user: %v\n", err)
 	}
 
 	// Setup AWS if not already done
@@ -300,8 +305,7 @@ func printDNSValidationInstructions(certs state.CertificateResults) {
 
 // Uses orgadmin (provided with RSA key) to create a new account whose first admin user is
 // PANTHERACCOUNTADMIN with a newly generated RSA key.
-// Then creates a type=person admin user for the customer based on the provided config.
-func setupSnowflake(ctx context.Context, cfg config.Config) (snowflake.CreateAccountResult, error) {
+func setupSnowflakeAccount(ctx context.Context, cfg config.Config) (snowflake.CreateAccountResult, error) {
 	snow := snowflake.AccountCreate{}
 
 	if err := snow.Connect(ctx, cfg.SnowflakeOrgConfig); err != nil {
@@ -314,18 +318,21 @@ func setupSnowflake(ctx context.Context, cfg config.Config) (snowflake.CreateAcc
 		return snowflake.CreateAccountResult{}, errors.Wrap(err, "failed to create new Snowflake account")
 	}
 
-	snowAcctSetup := snowflake.AccountSetup{}
+	return createAcctRes, nil
+}
 
+// Creates a type=person admin user for the customer based on the provided config.
+func snowflakeAdminUserSetup(ctx context.Context, createAcctRes snowflake.CreateAccountResult, cfg config.Config) error {
+	snowAcctSetup := snowflake.AccountSetup{}
 	if err := snowAcctSetup.Connect(ctx, createAcctRes); err != nil {
-		return snowflake.CreateAccountResult{}, errors.Wrap(err, "failed to connect to new Snowflake account")
+		return errors.Wrap(err, "failed to connect to new Snowflake account")
 	}
 	defer snowAcctSetup.Close()
 
 	if err := snowAcctSetup.SetupCustomerAccountAdminUser(cfg.NewAccountConfig); err != nil {
-		return snowflake.CreateAccountResult{}, errors.Wrap(err, "failed to setup Panther account admin user")
+		return errors.Wrap(err, "failed to setup Panther account admin user")
 	}
-
-	return createAcctRes, nil
+	return nil
 }
 
 func setupAWS(ctx context.Context, cfg config.Config) error {
