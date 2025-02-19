@@ -24,7 +24,3 @@ func (n NewAccountConfig) GetSnowflakeRegion() string {
 	region := strings.ReplaceAll(n.PantherRegion, "-", "_")
 	return "aws_" + region
 }
-
-type PantherAccountAdminConfig struct {
-	PantherAccountAdminPassword string `yaml:"PantherAccountAdminPassword" validate:"required,min=32"`
-}

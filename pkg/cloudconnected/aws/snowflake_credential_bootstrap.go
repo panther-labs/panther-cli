@@ -12,10 +12,12 @@ import (
 	lambdatypes "github.com/aws/aws-sdk-go-v2/service/lambda/types"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
+	"github.com/pkg/errors"
+
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/snowflake"
+	"github.com/panther-labs/panther-cli/pkg/rsapem"
 	"github.com/panther-labs/panther-cli/pkg/util"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -105,7 +107,6 @@ func (p *PantherSnowflakeCredentialBootstrap) Exec(createAcctResult snowflake.Cr
 		p.ctx,
 		sm,
 		snowflakeSecretName,
-		p.cfg.PantherAccountAdminConfig.PantherAccountAdminPassword,
 		createAcctResult,
 	); err != nil {
 		return errors.Wrap(err, "failed to write Snowflake secret")
@@ -168,7 +169,6 @@ func updateSnowflakeSecret(
 	ctx context.Context,
 	sm *secretsmanager.Client,
 	secretName string,
-	secretValue string,
 	createAcctResult snowflake.CreateAccountResult,
 ) error {
 	getSecretValueInput := &secretsmanager.GetSecretValueInput{
@@ -190,10 +190,22 @@ func updateSnowflakeSecret(
 		return errors.Wrap(err, "failed to get fully qualified account name")
 	}
 
+	privateKey, err := rsapem.EncodeRSAPEMPrivateKey(createAcctResult.AdminRSAKey)
+	if err != nil {
+		return errors.Wrap(err, "encoding PrivateKey for PANTHERACCOUNTADMIN")
+	}
+	publicKey, err := rsapem.EncodeRSAPEMPublicKey(&createAcctResult.AdminRSAKey.PublicKey)
+	if err != nil {
+		return errors.Wrap(err, "encoding PublicKey for PANTHERACCOUNTADMIN")
+	}
+	createTime := time.Now().UTC().Format(time.RFC3339)
+
 	// Update the secret values
-	secretMap["password"] = secretValue
 	secretMap["host"] = createAcctResult.URL
 	secretMap["account"] = fullyQualifiedAccount
+	secretMap["privateKey1"] = privateKey
+	secretMap["publicKey1"] = publicKey
+	secretMap["privateKey1CreateTimestamp"] = createTime
 
 	// Marshal the updated secret back to JSON
 	updatedSecretString, err := json.Marshal(secretMap)

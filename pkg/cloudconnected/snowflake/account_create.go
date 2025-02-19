@@ -7,9 +7,12 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
-	"github.com/panther-labs/panther-cli/pkg/util"
+	"github.com/k0kubun/pp/v3"
 	"github.com/pkg/errors"
+
+	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
+	"github.com/panther-labs/panther-cli/pkg/rsapem"
+	"github.com/panther-labs/panther-cli/pkg/util"
 )
 
 // Configuration for Snowflake connection is by using the
@@ -70,6 +73,7 @@ func (a *AccountCreate) mustSwitchToOrgAdminRole() {
 	}
 }
 
+// New accounts are created with PANTHERACCOUNTADMIN and a newly generated RSA key
 func (a *AccountCreate) CreateNewSnowflakeAccount(cfg config.NewAccountConfig) (CreateAccountResult, error) {
 	if !a.isConnected() {
 		return CreateAccountResult{}, errors.New("not connected to Snowflake")
@@ -79,13 +83,23 @@ func (a *AccountCreate) CreateNewSnowflakeAccount(cfg config.NewAccountConfig) (
 
 	var createAcctRes CreateAccountResult
 
+	key, err := rsapem.GenerateKeyPair()
+	if err != nil {
+		return CreateAccountResult{}, errors.Wrap(err, "failed to generate PANTHERACCOUNTADMIN RSA key pair")
+	}
+	pubkey, err := rsapem.EncodeRSAPEMPublicKey(key.PublicKey)
+	if err != nil {
+		return CreateAccountResult{}, errors.Wrap(err, "failed to encode PANTHERACCOUNTADMIN RSA public key")
+	}
+
 	const query = `
 CREATE ACCOUNT %s
-  ADMIN_NAME = ?
-  ADMIN_PASSWORD = ?
-  EMAIL = ?
+  ADMIN_NAME = 'PANTHERACCOUNTADMIN'
+  ADMIN_RSA_PUBLIC_KEY = ?
+  ADMIN_USER_TYPE = 'SERVICE'
   MUST_CHANGE_PASSWORD = FALSE
-  EDITION = ? // STANDARD, ENTERPRISE, or BUSINESS_CRITICAL
+  EMAIL = 'eng-core-infra@runpanther.io'
+  EDITION = ?
   REGION = ?
   COMMENT = 'Panther Snowflake Cloud Connected Production Environment';
 	`
@@ -93,9 +107,7 @@ CREATE ACCOUNT %s
 	row := a.sql.QueryRowContext(
 		a.ctx,
 		fmt.Sprintf(query, cfg.AccountName), // we cannot parameterize the account name
-		cfg.AdminUsername,
-		cfg.AdminPassword,
-		cfg.AdminEmail,
+		pubkey,
 		cfg.SnowflakeEdition,
 		cfg.GetSnowflakeRegion(),
 	)
@@ -105,12 +117,14 @@ CREATE ACCOUNT %s
 		return createAcctRes, errors.Wrapf(err, "error scanning result from CREATE ACCOUNT query")
 	}
 
-	err := json.Unmarshal(json.RawMessage(result), &createAcctRes)
+	err = json.Unmarshal(json.RawMessage(result), &createAcctRes)
 	if err != nil {
 		return createAcctRes, errors.Wrap(err, "error unmarshalling of CREATE ACCOUNT output")
 	}
 
-	log.Printf("Created new Snowflake account: %+v", createAcctRes)
+	log.Printf("Created new Snowflake account: %v", pp.Sprintln(createAcctRes))
+	// log before adding the RSA key to the result
+	createAcctRes.AdminRSAKey = key.PrivateKey
 
 	return createAcctRes, nil
 }

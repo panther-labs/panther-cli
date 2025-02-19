@@ -4,8 +4,10 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 
-	"github.com/panther-labs/panther-cli/pkg/cloudconnected/snowflake"
 	"github.com/pkg/errors"
+
+	"github.com/panther-labs/panther-cli/pkg/cloudconnected/snowflake"
+	"github.com/panther-labs/panther-cli/pkg/rsapem"
 )
 
 // SnowflakeAccountDetails wraps snowflake.CreateAccountResult for JSON serialization
@@ -13,18 +15,39 @@ type SnowflakeAccountDetails struct {
 	snowflake.CreateAccountResult
 }
 
+type serializedSnowflakeAccountDetails struct {
+	snowflake.CreateAccountResult
+	SerializedKey string
+}
+
 // Value implements the driver.Valuer interface for JSON storage
+// and handles the RSA key with a dedicated encoder
 func (s SnowflakeAccountDetails) Value() (driver.Value, error) {
-	return json.Marshal(s.CreateAccountResult)
+	serializedKey, err := rsapem.EncodeRSAPEMPrivateKey(s.AdminRSAKey)
+	if err != nil {
+		return nil, errors.Wrap(err, "serializing AdminRSAKey in row Valuer")
+	}
+	return json.Marshal(serializedSnowflakeAccountDetails{
+		CreateAccountResult: s.CreateAccountResult,
+		SerializedKey:       serializedKey,
+	})
 }
 
 // Scan implements the sql.Scanner interface for JSON storage
+// and handles the RSA key with a dedicated decoder
 func (s *SnowflakeAccountDetails) Scan(value interface{}) error {
 	b, ok := value.([]byte)
 	if !ok {
 		return errors.New("type assertion to []byte failed")
 	}
-	return json.Unmarshal(b, &s.CreateAccountResult)
+	x := serializedSnowflakeAccountDetails{}
+	err := json.Unmarshal(b, &x)
+	if err != nil {
+		return errors.Wrap(err, "unmarshalling SnowflakeAccountDetails")
+	}
+	s.CreateAccountResult = x.CreateAccountResult
+	s.AdminRSAKey, err = rsapem.ParseRSAPEMPrivateKey(x.SerializedKey)
+	return err
 }
 
 // CertificateValidationRecord represents the DNS validation details for a certificate
@@ -90,6 +113,7 @@ type Row struct {
 	ConfigHash                         string `validate:"sha256"`
 	SnowflakeAdminUsername             string
 	SnowflakeAdminPassword             string
+	SnowflakeAdminRSAKey               string
 	SnowflakeAccountDetails            SnowflakeAccountDetails
 	AWSPantherDeploymentRoleDeployed   bool
 	AWSReadinessBootstrapToolsDeployed bool
