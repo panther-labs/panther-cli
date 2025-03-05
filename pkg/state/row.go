@@ -92,7 +92,7 @@ type ReadinessCheckResults struct {
 }
 
 func (r *ReadinessCheckResults) HasPassed() bool {
-	return r.S3SelectEnabled && len(r.DeploymentRoleReadinessResults) == 0
+	return len(r.DeploymentRoleReadinessResults) == 0
 }
 
 // Value implements the driver.Valuer interface for JSON storage
