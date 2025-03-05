@@ -49,3 +49,7 @@ config.yml
 
 # test resources like local templates
 *-template.yml
+
+# don't checkin certs/keys
+*.pem
+*.key

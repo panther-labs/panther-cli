@@ -11,9 +11,9 @@ import (
 )
 
 type Config struct {
-	SnowflakeOrgConfig SnowflakeOrgConfig `yaml:"SnowflakeOrgConfig"        validate:"required"`
-	NewAccountConfig   NewAccountConfig   `yaml:"NewAccountConfig"          validate:"required"`
-	AWSConfig          AWSConfig          `yaml:"AWSConfig"                 validate:"required"`
+	SnowflakeOrgConfig SnowflakeOrgConfig `yaml:"SnowflakeOrgConfig" validate:"required"`
+	NewAccountConfig   NewAccountConfig   `yaml:"NewAccountConfig"   validate:"required"`
+	AWSConfig          AWSConfig          `yaml:"AWSConfig"          validate:"required"`
 }
 
 func (c Config) validate() error {
@@ -36,6 +36,15 @@ func NewConfigFromPath(path string) (Config, error) {
 
 	// initialize defaults within the config, this is recursive
 	defaults.SetDefaults(&cfg)
+
+	// Read the OrgAdminPrivateKey from file
+	if cfg.SnowflakeOrgConfig.OrgAdminPrivateKeyPath != "" {
+		privateKey, err := os.ReadFile(cfg.SnowflakeOrgConfig.OrgAdminPrivateKeyPath)
+		if err != nil {
+			return cfg, err
+		}
+		cfg.SnowflakeOrgConfig.OrgAdminPrivateKey = string(privateKey)
+	}
 
 	if err := cfg.validate(); err != nil {
 		var validationErrs validator.ValidationErrors

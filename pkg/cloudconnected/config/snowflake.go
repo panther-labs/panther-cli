@@ -3,10 +3,11 @@ package config
 import "strings"
 
 type SnowflakeOrgConfig struct {
-	AccountLocator     string `yaml:"AccountLocator"     validate:"required"`
-	AccountRegion      string `yaml:"AccountRegion"      validate:"required,validPantherRegion"`
-	OrgAdminUsername   string `yaml:"OrgAdminUsername"   validate:"required"`
-	OrgAdminPrivateKey string `yaml:"OrgAdminPrivateKey" validate:"required"`
+	AccountLocator         string `yaml:"AccountLocator"         validate:"required"`
+	AccountRegion          string `yaml:"AccountRegion"          validate:"required,validPantherRegion"`
+	OrgAdminUsername       string `yaml:"OrgAdminUsername"       validate:"required"`
+	OrgAdminPrivateKey     string `yaml:"-"` // This will be populated from the file
+	OrgAdminPrivateKeyPath string `yaml:"OrgAdminPrivateKeyPath" validate:"required"`
 }
 
 //nolint:lll

@@ -21,7 +21,13 @@ func formatSnowflakeDSNFromSnowflakeOrgConfig(cfg config.SnowflakeOrgConfig) str
 	if err != nil {
 		log.Fatalf("failed to parse RSA private key for Snowflake ORGADMIN credentials: %s", err.Error())
 	}
-	return formatSnowflakeDSNFromRSAKey(cfg.AccountRegion, cfg.AccountLocator, cfg.OrgAdminUsername, "ORGADMIN", parsedPrivateKey)
+	return formatSnowflakeDSNFromRSAKey(
+		cfg.AccountRegion,
+		cfg.AccountLocator,
+		cfg.OrgAdminUsername,
+		"ORGADMIN",
+		parsedPrivateKey,
+	)
 }
 
 // formatSnowflakeDSNFromRSAKey uses gosnowflake to generate a JWT-based connection string
@@ -50,18 +56,6 @@ func formatSnowflakeDSNFromRSAKey(region, locator, username, role string, key *r
 	}
 
 	return dsn
-}
-
-func formatSnowflakeDSN(accountLocator, accountRegion, username, password string) string {
-	const dsnFormat = "%s:%s@%s.%s.snowflakecomputing.com"
-
-	return fmt.Sprintf(
-		dsnFormat,
-		username,
-		password,
-		accountLocator,
-		accountRegion,
-	)
 }
 
 func getDefaultExponentialBackoffRetrier() *backoff.ExponentialBackOff {
