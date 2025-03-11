@@ -24,7 +24,13 @@ type AccountSetup struct {
 func (a *AccountSetup) Connect(ctx context.Context, cfg CreateAccountResult) error {
 	tryEnableSnowflakeDebugLogging()
 
-	dsn := formatSnowflakeDSNFromRSAKey(cfg.GetAWSRegion(), cfg.AccountLocator, "PANTHERACCOUNTADMIN", "ACCOUNTADMIN", cfg.AdminRSAKey)
+	dsn := formatSnowflakeDSNFromRSAKey(
+		cfg.GetAWSRegion(),
+		cfg.AccountLocator,
+		"PANTHERACCOUNTADMIN",
+		"ACCOUNTADMIN",
+		cfg.AdminRSAKey,
+	)
 	util.LogDebugf("Connecting to Snowflake with DSN: %s", dsn)
 
 	// It can take a little while for a new Snowflake account to
@@ -128,8 +134,20 @@ func (a *AccountSetup) SetupCustomerAccountAdminUser(cfg config.NewAccountConfig
 		return errors.Wrapf(err, "error scanning result from CREATE USER query")
 	}
 
-	expectedCreateUserResult := fmt.Sprintf("User %s successfully created.", cfg.AdminUsername)
-	if !strings.EqualFold(result, expectedCreateUserResult) {
+	expectedCreateUserResults := []string{
+		fmt.Sprintf("User %s successfully created.", cfg.AdminUsername),
+		fmt.Sprintf("%s already exists, statement succeeded.", cfg.AdminUsername),
+	}
+	expectedResultFound := false
+
+	for _, expectedResult := range expectedCreateUserResults {
+		if strings.EqualFold(result, expectedResult) {
+			expectedResultFound = true
+			break
+		}
+	}
+
+	if !expectedResultFound {
 		return errors.Errorf("unexpected result when creating %s: %s", cfg.AdminUsername, result)
 	}
 
