@@ -50,6 +50,7 @@ func LoadContent(ctx context.Context, uri string) (string, error) {
 	case strings.HasPrefix(uri, "http://"), strings.HasPrefix(uri, "https://"):
 		loader = httpLoader{}
 	case strings.HasPrefix(uri, "file://"):
+		loader = fileLoader{}
 	case !strings.Contains(uri, "://"): // Assume it's a local file path
 		loader = fileLoader{}
 	default:

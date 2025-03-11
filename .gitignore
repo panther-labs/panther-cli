@@ -53,3 +53,4 @@ config.yml
 # don't checkin certs/keys
 *.pem
 *.key
+keys/

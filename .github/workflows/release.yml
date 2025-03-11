@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+  issues: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.24'
+          cache: true
+
+      - name: Install dependencies
+        run: |
+          go mod download
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+      - name: Run tests
+        run: go test -v ./pkg/...
+
+      - name: Run linting
+        run: golangci-lint run
+
+      - name: Create release tag if not exists
+        id: create_tag
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: |
+          # Explicitly fetch all tags from the remote
+          git fetch --tags --force
+
+          # Get latest tag or use v0.0.0 if none exists
+          LATEST_TAG=$(git tag -l | grep "^v" | sort -V | tail -n 1 || echo "v0.0.0")
+          echo "Latest tag: $LATEST_TAG"
+
+          # Increment patch version
+          MAJOR=$(echo $LATEST_TAG | sed 's/v\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)/\1/')
+          MINOR=$(echo $LATEST_TAG | sed 's/v\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)/\2/')
+          PATCH=$(echo $LATEST_TAG | sed 's/v\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\)/\3/')
+          PATCH=$((PATCH + 1))
+
+          NEW_TAG="v$MAJOR.$MINOR.$PATCH"
+          echo "Creating new tag: $NEW_TAG"
+
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git tag -a $NEW_TAG -m "Release $NEW_TAG"
+
+          echo "tag=$NEW_TAG" >> $GITHUB_OUTPUT
+          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_ENV
+
+      - name: Push tag
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: git push origin $NEW_TAG
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

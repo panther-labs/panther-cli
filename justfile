@@ -5,6 +5,9 @@ alias bc := build-clean
 alias c := clean
 alias l := lint
 alias rpccs := run-panther-cloud-connected-setup
+alias t := test
+alias tv := test-verbose
+alias tc := test-coverage
 
 build: copy-config
     go build -o ./bin/panther-cloud-connected-setup/panther-cloud-connected-setup ./cmd/panther-cloud-connected-setup/
@@ -42,3 +45,19 @@ build-clean: clean build-full-upgrade
 
 run-panther-cloud-connected-setup: build
     ./bin/panther-cloud-connected-setup/panther-cloud-connected-setup --config-file config.yml --verbose
+
+# Run all tests
+test:
+    go test ./pkg/...
+
+# Run all tests with verbose output
+test-verbose:
+    go test -v ./pkg/...
+
+# Run tests with coverage report
+test-coverage:
+    go test -cover ./pkg/...
+
+# Run tests for a specific package (usage: just test-pkg pkg/state)
+test-pkg pkg:
+    go test -v ./{{pkg}}/...
