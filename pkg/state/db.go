@@ -41,8 +41,14 @@ func NewDB() (*DB, error) {
 		return nil, errors.Wrap(err, "failed to create table")
 	}
 
-	// Ensure durability by setting synchronous mode to FULL
-	if _, err := db.Exec("PRAGMA synchronous=FULL"); err != nil {
+	// Ensure durability by:
+	// - setting synchronous mode to EXTRA
+	// - setting journal mode to DELETE
+	//
+	// We don't care about performance here, we just want to ensure that the
+	// database is durable and that we can recover from any crash. Writes are
+	// very infrequent.
+	if _, err := db.Exec("PRAGMA synchronous=EXTRA; PRAGMA journal_mode = DELETE;"); err != nil {
 		db.Close()
 		return nil, errors.Wrap(err, "failed to set synchronous mode")
 	}
@@ -170,11 +176,6 @@ func (d *DB) SaveState(row *Row) error {
 	)
 	if err != nil {
 		return errors.Wrap(err, "failed to save state")
-	}
-
-	// Force an fsync to ensure data is written to disk
-	if err := d.db.QueryRow("PRAGMA wal_checkpoint(FULL)").Err(); err != nil {
-		return errors.Wrap(err, "failed to checkpoint WAL")
 	}
 
 	return nil

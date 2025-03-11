@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -42,6 +43,8 @@ func (c *CloudFormation) ApplyDeploymentRole() error {
 		return errors.Wrap(err, "failed to fetch CloudFormation template for deployment role")
 	}
 
+	log.Printf("Deploying deployment role from '%s'", c.cfg.CloudFormationConfig.DeploymentRoleTemplateURL)
+
 	stackName := c.cfg.CloudFormationConfig.DeploymentRoleStackName
 
 	parameters := []types.Parameter{
@@ -63,12 +66,18 @@ func (c *CloudFormation) ApplyDeploymentRole() error {
 }
 
 func (c *CloudFormation) ApplyPreDeploymentTools() error {
-	templateURL := fmt.Sprintf(c.cfg.CloudFormationConfig.PreDeploymentToolsTemplateURL, c.cfg.Region)
+	templateURL := c.cfg.CloudFormationConfig.PreDeploymentToolsTemplateURL
+	if strings.Contains(templateURL, "%s") {
+		// if we locally provided a template, no need to Sprintf
+		templateURL = fmt.Sprintf(templateURL, c.cfg.Region)
+	}
 
 	templateContent, err := util.LoadContent(c.ctx, templateURL)
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch CloudFormation template for pre-deployment tools")
 	}
+
+	log.Printf("Deploying pre-deployment tools from '%s'", templateURL)
 
 	parameters := []types.Parameter{} // this template doesn't take parameters
 

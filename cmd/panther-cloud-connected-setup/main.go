@@ -40,6 +40,7 @@ func main() {
 
 	ctx := context.Background()
 	currentState := stateManager.GetState()
+	util.LogDebugln(pp.Sprintln(currentState))
 
 	// Setup Snowflake if not already done
 	var createAcctRes snowflake.CreateAccountResult
@@ -322,7 +323,11 @@ func setupSnowflakeAccount(ctx context.Context, cfg config.Config) (snowflake.Cr
 }
 
 // Creates a type=person admin user for the customer based on the provided config.
-func snowflakeAdminUserSetup(ctx context.Context, createAcctRes snowflake.CreateAccountResult, cfg config.Config) error {
+func snowflakeAdminUserSetup(
+	ctx context.Context,
+	createAcctRes snowflake.CreateAccountResult,
+	cfg config.Config,
+) error {
 	snowAcctSetup := snowflake.AccountSetup{}
 	if err := snowAcctSetup.Connect(ctx, createAcctRes); err != nil {
 		return errors.Wrap(err, "failed to connect to new Snowflake account")
