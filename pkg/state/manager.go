@@ -100,8 +100,9 @@ func (m *Manager) UpdateAWSReadinessState(results ReadinessCheckResults) error {
 }
 
 // UpdateAWSSnowflakeBootstrapState updates the AWS Snowflake bootstrap state
-func (m *Manager) UpdateAWSSnowflakeBootstrapState(succeeded bool) error {
+func (m *Manager) UpdateAWSSnowflakeBootstrapState(succeeded bool, secretARN string) error {
 	m.state.AWSSnowflakeBootstrapSucceeded = succeeded
+	m.state.AWSSnowflakeSecretARN = secretARN
 	return m.SaveState()
 }
 

@@ -202,20 +202,23 @@ func TestStateUpdates(t *testing.T) {
 		defer manager.Close()
 
 		// Update Snowflake bootstrap state
-		err = manager.UpdateAWSSnowflakeBootstrapState(true)
+		testARN := "arn:aws:secretsmanager:us-west-2:123456789012:secret:test-secret-123456"
+		err = manager.UpdateAWSSnowflakeBootstrapState(true, testARN)
 		require.NoError(t, err)
 
 		// Verify state
 		state := manager.GetState()
 		assert.True(t, state.AWSSnowflakeBootstrapSucceeded)
+		assert.Equal(t, testARN, state.AWSSnowflakeSecretARN)
 
 		// Update to false
-		err = manager.UpdateAWSSnowflakeBootstrapState(false)
+		err = manager.UpdateAWSSnowflakeBootstrapState(false, "")
 		require.NoError(t, err)
 
 		// Verify state
 		state = manager.GetState()
 		assert.False(t, state.AWSSnowflakeBootstrapSucceeded)
+		assert.Empty(t, state.AWSSnowflakeSecretARN)
 	})
 
 	// Test UpdateCertificateState

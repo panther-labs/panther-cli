@@ -120,6 +120,7 @@ type Row struct {
 	AWSReadinessCheckSucceeded         bool
 	AWSReadinessCheckResults           ReadinessCheckResults
 	AWSSnowflakeBootstrapSucceeded     bool
+	AWSSnowflakeSecretARN              string
 	AWSCertificatesRequested           bool
 	AWSCertificatesResults             CertificateResults
 }

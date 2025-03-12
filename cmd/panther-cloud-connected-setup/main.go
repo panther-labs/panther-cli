@@ -2,9 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 
+	awssdk "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/aws"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/panther"
@@ -13,6 +17,7 @@ import (
 	"github.com/panther-labs/panther-cli/pkg/util"
 	"github.com/pkg/errors"
 	_ "github.com/snowflakedb/gosnowflake"
+	"gopkg.in/yaml.v3"
 
 	pp "github.com/k0kubun/pp/v3"
 )
@@ -99,12 +104,16 @@ func main() {
 
 	// Run Snowflake credential bootstrap if not already done
 	if !currentState.AWSSnowflakeBootstrapSucceeded {
-		if err := runSnowflakeCredentialBootstrap(ctx, cfg, createAcctRes); err != nil {
+		credsARN, err := runSnowflakeCredentialBootstrap(ctx, cfg, createAcctRes)
+		if err != nil {
 			log.Fatalf("failed to run Snowflake credential bootstrap: %v\n", err)
 		}
-		if err := stateManager.UpdateAWSSnowflakeBootstrapState(true); err != nil {
+
+		// Update the AWS Snowflake bootstrap state with success flag and secret ARN
+		if err := stateManager.UpdateAWSSnowflakeBootstrapState(true, credsARN); err != nil {
 			log.Fatalf("failed to update AWS Snowflake bootstrap state: %v\n", err)
 		}
+		log.Printf("Snowflake credential bootstrap completed successfully. Credentials ARN: %s\n", credsARN)
 	} else {
 		log.Println("Skipping Snowflake credential bootstrap - already completed")
 	}
@@ -121,7 +130,19 @@ func main() {
 	}
 }
 
-func showLastRun(configFile string, jsonOutput bool) {
+// OutputDetails contains the structured information for formatted output
+type OutputDetails struct {
+	AWSAccountID           string                 `json:"aws_account_id"                     yaml:"aws_account_id"`
+	PantherSubdomain       string                 `json:"panther_subdomain"                  yaml:"panther_subdomain"`
+	SnowflakeSecretARN     string                 `json:"snowflake_secret_arn"               yaml:"snowflake_secret_arn"`
+	SnowflakeRegion        string                 `json:"snowflake_region"                   yaml:"snowflake_region"`
+	SnowflakeEdition       string                 `json:"snowflake_edition"                  yaml:"snowflake_edition"`
+	PantherCertificateARN  string                 `json:"panther_certificate_arn,omitempty"  yaml:"panther_certificate_arn,omitempty"`
+	WildcardCertificateARN string                 `json:"wildcard_certificate_arn,omitempty" yaml:"wildcard_certificate_arn,omitempty"`
+	DeploymentStatus       map[string]interface{} `json:"deployment_status"                  yaml:"deployment_status"`
+}
+
+func showLastRun(configFile string, jsonOutput bool, yamlOutput bool) {
 	if !state.HasState() {
 		log.Fatalf("No state found. Run the setup process first to create state.")
 	}
@@ -139,14 +160,31 @@ func showLastRun(configFile string, jsonOutput bool) {
 
 	currentState := stateManager.GetState()
 
-	if jsonOutput {
-		// Use pp to output JSON with proper formatting
-		pp.SetDefaultOutput(os.Stdout)
-		pp.Println(currentState)
+	// If JSON or YAML output is requested, use structured output
+	if jsonOutput || yamlOutput {
+		// Create structured output
+		ctx := context.Background()
+		output := createStructuredOutput(ctx, cfg, currentState)
+
+		if jsonOutput {
+			// Output JSON
+			jsonData, err := json.MarshalIndent(output, "", "  ")
+			if err != nil {
+				log.Fatalf("Failed to marshal output to JSON: %v", err)
+			}
+			fmt.Println(string(jsonData))
+		} else {
+			// Output YAML
+			yamlData, err := yaml.Marshal(output)
+			if err != nil {
+				log.Fatalf("Failed to marshal output to YAML: %v", err)
+			}
+			fmt.Println(string(yamlData))
+		}
 		os.Exit(0)
 	}
 
-	// Print human-readable format
+	// If we get here, use the original human-readable format
 	log.Printf("Snowflake Account Details:\n")
 	log.Printf("  Account Name: %s\n", currentState.SnowflakeAccountDetails.AccountName)
 	log.Printf("  URL: %s\n", currentState.SnowflakeAccountDetails.URL)
@@ -173,8 +211,80 @@ func showLastRun(configFile string, jsonOutput bool) {
 			log.Printf("    Issued: %v\n", currentState.AWSCertificatesResults.WildcardSubdomain.IsIssued)
 		}
 	}
+}
 
-	os.Exit(0)
+// createStructuredOutput creates a structured output object with all required information
+func createStructuredOutput(ctx context.Context, cfg config.Config, currentState *state.Row) OutputDetails {
+	// Initialize the output structure
+	output := OutputDetails{
+		AWSAccountID:     cfg.AWSConfig.CloudFormationConfig.IdentityAccountId,
+		PantherSubdomain: cfg.AWSConfig.DomainCertificateConfiguration.PantherSubdomain,
+		SnowflakeRegion:  cfg.NewAccountConfig.PantherRegion,
+		SnowflakeEdition: cfg.NewAccountConfig.SnowflakeEdition,
+		DeploymentStatus: make(map[string]interface{}),
+	}
+
+	// Add certificate ARNs if available
+	if currentState.AWSCertificatesResults.PantherSubdomain != nil {
+		output.PantherCertificateARN = currentState.AWSCertificatesResults.PantherSubdomain.CertificateArn
+	}
+	if currentState.AWSCertificatesResults.WildcardSubdomain != nil {
+		output.WildcardCertificateARN = currentState.AWSCertificatesResults.WildcardSubdomain.CertificateArn
+	}
+
+	// Add deployment status information
+	output.DeploymentStatus["aws_deployment_role_deployed"] = currentState.AWSPantherDeploymentRoleDeployed
+	output.DeploymentStatus["aws_bootstrap_tools_deployed"] = currentState.AWSReadinessBootstrapToolsDeployed
+	output.DeploymentStatus["aws_readiness_check_succeeded"] = currentState.AWSReadinessCheckSucceeded
+	output.DeploymentStatus["aws_snowflake_bootstrap_succeeded"] = currentState.AWSSnowflakeBootstrapSucceeded
+
+	// Get the Snowflake secret ARN from state if available, otherwise try to retrieve it
+	if currentState.AWSSnowflakeBootstrapSucceeded && currentState.AWSSnowflakeSecretARN != "" {
+		output.SnowflakeSecretARN = currentState.AWSSnowflakeSecretARN
+	} else {
+		// Try to get the ARN from AWS Secrets Manager
+		secretARN, err := getSnowflakeSecretARN(ctx, cfg)
+		if err != nil {
+			log.Printf("Warning: Failed to retrieve Snowflake secret ARN: %v", err)
+			output.SnowflakeSecretARN = "unknown"
+		} else {
+			output.SnowflakeSecretARN = secretARN
+		}
+	}
+
+	return output
+}
+
+// getSnowflakeSecretARN retrieves the ARN of the Snowflake secret
+func getSnowflakeSecretARN(ctx context.Context, cfg config.Config) (string, error) {
+	// Create AWS config
+	awsCfg, err := util.GetAWSConfig(
+		ctx,
+		cfg.AWSConfig.AccessKeyID,
+		cfg.AWSConfig.SecretAccessKey,
+		cfg.AWSConfig.SessionToken,
+	)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create AWS config")
+	}
+
+	// Create Secrets Manager client
+	sm := secretsmanager.NewFromConfig(awsCfg, func(o *secretsmanager.Options) {
+		o.Region = cfg.AWSConfig.Region
+	})
+
+	// Get secret information
+	secretName := "panther-managed-accountadmin-secret"
+	input := &secretsmanager.DescribeSecretInput{
+		SecretId: awssdk.String(secretName),
+	}
+
+	secretInfo, err := sm.DescribeSecret(ctx, input)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to describe Snowflake secret")
+	}
+
+	return *secretInfo.ARN, nil
 }
 
 func setupCertificates(ctx context.Context, cfg config.Config, stateManager *state.Manager) error {
@@ -400,15 +510,16 @@ func runSnowflakeCredentialBootstrap(
 	ctx context.Context,
 	cfg config.Config,
 	createAcctRes snowflake.CreateAccountResult,
-) error {
+) (string, error) {
 	bootstrap, err := aws.NewPantherSnowflakeCredentialBootstrap(ctx, cfg)
 	if err != nil {
-		return errors.Wrap(err, "failed to initialize Snowflake credential bootstrap")
+		return "", errors.Wrap(err, "failed to initialize Snowflake credential bootstrap")
 	}
 
-	if err := bootstrap.Exec(createAcctRes); err != nil {
-		return errors.Wrap(err, "failed to execute Snowflake credential bootstrap")
+	credsARN, err := bootstrap.Exec(createAcctRes)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to execute Snowflake credential bootstrap")
 	}
 
-	return nil
+	return credsARN, nil
 }
