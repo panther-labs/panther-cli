@@ -12,6 +12,7 @@ import (
 	lambdatypes "github.com/aws/aws-sdk-go-v2/service/lambda/types"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
+	"github.com/k0kubun/pp/v3"
 	"github.com/pkg/errors"
 
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
@@ -19,6 +20,27 @@ import (
 	"github.com/panther-labs/panther-cli/pkg/rsapem"
 	"github.com/panther-labs/panther-cli/pkg/util"
 )
+
+// SnowflakeValidationResponse represents the successful response from the Snowflake credential validation lambda
+type SnowflakeValidationResponse struct {
+	StatusCode int                     `json:"statusCode"`
+	Headers    map[string]string       `json:"headers"`
+	Body       SnowflakeValidationBody `json:"body"`
+}
+
+// SnowflakeValidationBody represents the body field in the validation response
+type SnowflakeValidationBody struct {
+	Message  string `json:"message"`
+	CredsARN string `json:"credsArn"`
+}
+
+// SnowflakeValidationError represents the error response from the Snowflake credential validation lambda
+type SnowflakeValidationError struct {
+	ErrorMessage string   `json:"errorMessage"`
+	ErrorType    string   `json:"errorType"`
+	RequestID    string   `json:"requestId"`
+	StackTrace   []string `json:"stackTrace"`
+}
 
 const (
 	snowflakeCredentialBootstrapLambdaName = "PantherSnowflakeCredentialBootstrap"
@@ -270,51 +292,28 @@ func validateCredentials(ctx context.Context, lambdaClient *lambda.Client) (stri
 		return "", nil // Old version doesn't return creds_arn
 	}
 
-	// The new version of the snowflake cred bootstrapper lambda returns a json object like a good little lambda.
-	var unmarshaledPayload map[string]interface{}
-	if err := json.Unmarshal(result.Payload, &unmarshaledPayload); err != nil {
+	// Try to unmarshal as error response first
+	var errorResponse SnowflakeValidationError
+	if err := json.Unmarshal(result.Payload, &errorResponse); err == nil && errorResponse.ErrorMessage != "" {
+		return "", errors.Errorf("validation failed with error: %s", errorResponse.ErrorMessage)
+	}
+
+	// If not an error, try to unmarshal as success response
+	var response SnowflakeValidationResponse
+	if err := json.Unmarshal(result.Payload, &response); err != nil {
 		return "", errors.Wrapf(err, "couldn't parse payload from validate response: %s", string(result.Payload))
 	}
 
-	// Check if unmarshaledPayload has a field called `errorMessage` - error case
-	// The response body for a failing request should look like:
-	// {
-	// 	"errorMessage": "250003 (08001): 404 Not Found: post https://pantherlabs-zbrown_cc_provisioning_test34fart.snowflakecomputing.co...
-	// 	"errorType": "InterfaceError",
-	// 	"requestId": "2b6332ce-2361-4533-b183-f7f2ae7fbce8",
-	// 	"stackTrace": [
-	// 		<snipped stack trace>
-	// 	]
-	// }
-	//
-	// Details might differ.
-	if errorMessage, ok := unmarshaledPayload["errorMessage"]; ok {
-		return "", errors.Errorf("validation failed with error: %s", errorMessage)
-	}
+	util.LogDebugf("unmarshalled PantherSnowflakeCredentialBootstrap response: %s", pp.Sprint(response))
 
-	// Check if we have a statusCode field and that it's 200 - success case
-	// The response body for a successful request should look like:
-	// {
-	//   "statusCode": 200,
-	//   "headers": { "Content-Type": "application/json" },
-	//   "body": { "message": "Validation succeeded for the secret. <insert more info>" }
-	//   "creds_arn": "arn:aws:secretsmanager:us-west-2:<snip>:secret:panther-managed-accountadmin-secret-<snip>"
-	// }
-	if statusCode, ok := unmarshaledPayload["statusCode"]; ok && statusCode.(float64) == 200 {
-		// Extract and return creds_arn if available
-		if credsARN, ok := unmarshaledPayload["creds_arn"]; ok {
-			if credsARNStr, ok := credsARN.(string); ok {
-				if body, ok := unmarshaledPayload["body"]; ok {
-					if bodyMap, ok := body.(map[string]interface{}); ok {
-						if message, ok := bodyMap["message"]; ok {
-							log.Println(message)
-						}
-					}
-				}
-				return credsARNStr, nil
-			}
+	// Check for successful status code
+	if response.StatusCode == 200 {
+		log.Printf("Validation succeeded with message: %s", response.Body.Message)
+		if response.Body.CredsARN != "" {
+			return response.Body.CredsARN, nil
 		}
 	}
+
 	return "", errors.Errorf(
 		"unexpected response from Snowflake credential validation lambda, report this to your Panther rep: %s",
 		string(result.Payload),

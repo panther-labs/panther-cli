@@ -14,7 +14,6 @@ type args struct {
 	VerboseSnowflakeLogging bool   `arg:"--snowflake-logging" help:"Enable verbose Snowflake logging (very noisy)"`
 	ShowLastRun             bool   `arg:"--show-last-run"     help:"Show the results of the last run"`
 	JSONOutput              bool   `arg:"--json"              help:"Output in JSON format"`
-	YAMLOutput              bool   `arg:"--yaml"              help:"Output in YAML format"`
 	Clean                   bool   `arg:"--clean"             help:"Remove the state database file"`
 }
 
@@ -31,11 +30,6 @@ func validateArgs() (a args) {
 		p.Fail("must specify a command")
 	}
 
-	// Cannot specify both JSON and YAML output
-	if a.JSONOutput && a.YAMLOutput {
-		p.Fail("cannot specify both --json and --yaml")
-	}
-
 	// Handle clean command
 	if a.Clean {
 		if err := state.CleanState(); err != nil {
@@ -47,7 +41,7 @@ func validateArgs() (a args) {
 
 	// Handle show-last-run command
 	if a.ShowLastRun {
-		showLastRun(a.ConfigFile, a.JSONOutput, a.YAMLOutput)
+		showLastRun(a.ConfigFile, a.JSONOutput)
 		os.Exit(0)
 	}
 
