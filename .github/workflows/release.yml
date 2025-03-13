@@ -31,13 +31,15 @@ jobs:
       - name: Install dependencies
         run: |
           go mod download
-          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
       - name: Run tests
         run: go test -v ./pkg/...
 
-      - name: Run linting
-        run: golangci-lint run
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          args: --timeout 10m --verbose --allow-parallel-runners --max-same-issues 0 --max-issues-per-linter 0
+          version: v1.64
 
       - name: Create release tag if not exists
         id: create_tag
