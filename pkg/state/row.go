@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/snowflake"
@@ -146,6 +148,9 @@ func (r *Row) PrettyPrint(cfg config.Config) {
 	// Get structured output data
 	output := r.createStructuredOutput(cfg)
 
+	// Create a title caser for English
+	titleCaser := cases.Title(language.English)
+
 	// Print Snowflake Account Details section
 	log.Printf("Snowflake Account Details:\n")
 	log.Printf("  Account Name: %s\n", r.SnowflakeAccountDetails.AccountName)
@@ -156,7 +161,7 @@ func (r *Row) PrettyPrint(cfg config.Config) {
 
 	// Print AWS Account ID if available
 	if output.AWSAccountID != "" {
-		log.Printf("AWS Account ID: %s\n", output.AWSAccountID)
+		log.Printf("\nAWS Account ID: %s\n", output.AWSAccountID)
 	}
 
 	// Print Panther Subdomain if available
@@ -165,11 +170,12 @@ func (r *Row) PrettyPrint(cfg config.Config) {
 	}
 
 	// Print AWS Deployment Status section using map iteration
-	log.Printf("AWS Deployment Status:\n")
+	log.Printf("\nAWS Deployment Status:\n")
 	for key, value := range output.DeploymentStatus {
 		// Format keys for better readability by replacing underscores with spaces and capitalizing
 		formattedKey := strings.ReplaceAll(key, "_", " ")
-		formattedKey = strings.Title(formattedKey)
+		// Using the modern title caser instead of deprecated strings.Title
+		formattedKey = titleCaser.String(formattedKey)
 		log.Printf("  %s: %v\n", formattedKey, value)
 	}
 

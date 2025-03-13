@@ -152,7 +152,23 @@ func writeJSONSupportFile(currentState *state.Row, cfg config.Config) (string, e
 		// File exists, prompt for overwrite
 		log.Printf("File %s already exists. Overwrite? (y/n): ", filename)
 		var response string
-		fmt.Scanln(&response)
+		n, err := fmt.Scanln(&response)
+		// Handle potential Scanln errors
+		if err != nil {
+			// EOF or unexpected error
+			if err.Error() != "unexpected newline" {
+				log.Printf("Error reading input: %v", err)
+			}
+			// Default to not overwriting on error
+			log.Println("File not overwritten due to input error.")
+			return jsonStr, nil
+		}
+
+		// Check if we got any input
+		if n == 0 {
+			log.Println("No input received. File not overwritten.")
+			return jsonStr, nil
+		}
 
 		if strings.ToLower(response) != "y" && strings.ToLower(response) != "yes" {
 			log.Println("File not overwritten.")
@@ -161,7 +177,7 @@ func writeJSONSupportFile(currentState *state.Row, cfg config.Config) (string, e
 	}
 
 	// Write to file
-	err = os.WriteFile(filename, []byte(jsonStr), 0o644)
+	err = os.WriteFile(filename, []byte(jsonStr), 0o600)
 	if err != nil {
 		return jsonStr, errors.Wrapf(err, "failed to write to file %s", filename)
 	}
