@@ -127,7 +127,7 @@ func main() {
 	}
 
 	// show this run's results
-	showLastRun(a.ConfigFile, a.JSONOutput)
+	showLastRun(a.ConfigFile)
 }
 
 // writeJSONSupportFile generates a JSON support file using the provided state and config
@@ -187,7 +187,7 @@ func writeJSONSupportFile(currentState *state.Row, cfg config.Config) (string, e
 	return jsonStr, nil
 }
 
-func showLastRun(configFile string, jsonOutput bool) {
+func showLastRun(configFile string) {
 	if !state.HasState() {
 		log.Fatalf("No state found. Run the setup process first to create state.")
 	}
@@ -208,16 +208,14 @@ func showLastRun(configFile string, jsonOutput bool) {
 	// If we get here, use the human-readable format
 	currentState.PrettyPrint(cfg)
 
-	// If JSON or YAML output is requested, use structured output
-	if jsonOutput {
-		log.Println()
-		log.Println()
-		jsonStr, err := writeJSONSupportFile(currentState, cfg)
-		if err != nil {
-			log.Fatalf("Failed to create JSON support file: %v", err)
-		}
-		util.LogDebugln(jsonStr)
+	// now write the JSON support file
+	log.Println()
+	log.Println()
+	jsonStr, err := writeJSONSupportFile(currentState, cfg)
+	if err != nil {
+		log.Fatalf("Failed to create JSON support file: %v", err)
 	}
+	util.LogDebugln(jsonStr)
 }
 
 func setupCertificates(ctx context.Context, cfg config.Config, stateManager *state.Manager) error {

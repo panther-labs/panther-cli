@@ -161,7 +161,7 @@ func (r *Row) PrettyPrint(cfg config.Config) {
 
 	// Print AWS Account ID if available
 	if output.AWSAccountID != "" {
-		log.Printf("\nAWS Account ID: %s\n", output.AWSAccountID)
+		log.Printf("AWS Account ID: %s\n", output.AWSAccountID)
 	}
 
 	// Print Panther Subdomain if available
@@ -170,7 +170,7 @@ func (r *Row) PrettyPrint(cfg config.Config) {
 	}
 
 	// Print AWS Deployment Status section using map iteration
-	log.Printf("\nAWS Deployment Status:\n")
+	log.Printf("AWS Deployment Status:\n")
 	for key, value := range output.DeploymentStatus {
 		// Format keys for better readability by replacing underscores with spaces and capitalizing
 		formattedKey := strings.ReplaceAll(key, "_", " ")
