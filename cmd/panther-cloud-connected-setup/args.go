@@ -13,7 +13,6 @@ type args struct {
 	Verbose                 bool   `arg:"-v,--verbose"        help:"Enable verbose logging"`
 	VerboseSnowflakeLogging bool   `arg:"--snowflake-logging" help:"Enable verbose Snowflake logging (very noisy)"`
 	ShowLastRun             bool   `arg:"--show-last-run"     help:"Show the results of the last run"`
-	JSONOutput              bool   `arg:"--json"              help:"Output in JSON format (only applies to --show-last-run)"`
 	Clean                   bool   `arg:"--clean"             help:"Remove the state database file"`
 }
 
@@ -41,7 +40,7 @@ func validateArgs() (a args) {
 
 	// Handle show-last-run command
 	if a.ShowLastRun {
-		showLastRun(a.ConfigFile, a.JSONOutput)
+		showLastRun(a.ConfigFile)
 		os.Exit(0)
 	}
 

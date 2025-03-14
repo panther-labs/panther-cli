@@ -88,20 +88,17 @@ func (m *Manager) UpdateAWSBootstrapState(deployed bool) error {
 	return m.SaveState()
 }
 
-// UpdateAWSReadinessState updates the AWS readiness check state and results
+// UpdateAWSReadinessState updates only the AWS readiness check state and results
 func (m *Manager) UpdateAWSReadinessState(results ReadinessCheckResults) error {
 	m.state.AWSReadinessCheckResults = results
-
-	// Success criteria: empty/null deployment role results array and s3_select_enabled is true
-	deploymentRoleResults := results.DeploymentRoleReadinessResults
-	m.state.AWSReadinessCheckSucceeded = len(deploymentRoleResults) == 0 && results.S3SelectEnabled
-
+	m.state.AWSReadinessCheckSucceeded = results.HasPassed()
 	return m.SaveState()
 }
 
-// UpdateAWSSnowflakeBootstrapState updates the AWS Snowflake bootstrap state
-func (m *Manager) UpdateAWSSnowflakeBootstrapState(succeeded bool) error {
+// UpdateAWSSnowflakeBootstrapState updates only the AWS Snowflake bootstrap state
+func (m *Manager) UpdateAWSSnowflakeBootstrapState(succeeded bool, secretARN string) error {
 	m.state.AWSSnowflakeBootstrapSucceeded = succeeded
+	m.state.AWSSnowflakeSecretARN = secretARN
 	return m.SaveState()
 }
 

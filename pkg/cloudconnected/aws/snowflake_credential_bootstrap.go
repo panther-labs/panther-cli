@@ -12,6 +12,7 @@ import (
 	lambdatypes "github.com/aws/aws-sdk-go-v2/service/lambda/types"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
+	"github.com/k0kubun/pp/v3"
 	"github.com/pkg/errors"
 
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
@@ -19,6 +20,27 @@ import (
 	"github.com/panther-labs/panther-cli/pkg/rsapem"
 	"github.com/panther-labs/panther-cli/pkg/util"
 )
+
+// SnowflakeValidationResponse represents the successful response from the Snowflake credential validation lambda
+type SnowflakeValidationResponse struct {
+	StatusCode int                     `json:"statusCode"`
+	Headers    map[string]string       `json:"headers"`
+	Body       SnowflakeValidationBody `json:"body"`
+}
+
+// SnowflakeValidationBody represents the body field in the validation response
+type SnowflakeValidationBody struct {
+	Message  string `json:"message"`
+	CredsARN string `json:"credsArn"`
+}
+
+// SnowflakeValidationError represents the error response from the Snowflake credential validation lambda
+type SnowflakeValidationError struct {
+	ErrorMessage string   `json:"errorMessage"`
+	ErrorType    string   `json:"errorType"`
+	RequestID    string   `json:"requestId"`
+	StackTrace   []string `json:"stackTrace"`
+}
 
 const (
 	snowflakeCredentialBootstrapLambdaName = "PantherSnowflakeCredentialBootstrap"
@@ -52,7 +74,7 @@ func NewPantherSnowflakeCredentialBootstrap(
 	}, nil
 }
 
-func (p *PantherSnowflakeCredentialBootstrap) Exec(createAcctResult snowflake.CreateAccountResult) error {
+func (p *PantherSnowflakeCredentialBootstrap) Exec(createAcctResult snowflake.CreateAccountResult) (string, error) {
 	sm := secretsmanager.NewFromConfig(p.awsCfg, func(o *secretsmanager.Options) {
 		o.Region = p.cfg.AWSConfig.Region
 	})
@@ -63,13 +85,13 @@ func (p *PantherSnowflakeCredentialBootstrap) Exec(createAcctResult snowflake.Cr
 
 	secretExists, err := snowflakeSecretExists(p.ctx, sm, snowflakeSecretName)
 	if err != nil {
-		return errors.Wrap(err, "failed to check if snowflake secret exists")
+		return "", errors.Wrap(err, "failed to check if snowflake secret exists")
 	}
 
 	// run `validate` lambda function
 	if !secretExists {
 		if err := bootstrapCredentials(p.ctx, lambdaClient, createAcctResult.URL); err != nil {
-			return errors.Wrap(err, "failed to bootstrap Snowflake credentials")
+			return "", errors.Wrap(err, "failed to bootstrap Snowflake credentials")
 		}
 	}
 
@@ -78,7 +100,7 @@ func (p *PantherSnowflakeCredentialBootstrap) Exec(createAcctResult snowflake.Cr
 	const maxAttempts = 10
 	for ii := range maxAttempts {
 		if ii == maxAttempts-1 {
-			return errors.Errorf(
+			return "", errors.Errorf(
 				"max attempts reached waiting for '%s' lambda to bootstrap Snowflake secret",
 				snowflakeCredentialBootstrapLambdaName,
 			)
@@ -86,7 +108,7 @@ func (p *PantherSnowflakeCredentialBootstrap) Exec(createAcctResult snowflake.Cr
 
 		exists, err := snowflakeSecretExists(p.ctx, sm, snowflakeSecretName)
 		if err != nil {
-			return errors.Wrap(err, "failed to check if snowflake secret exists")
+			return "", errors.Wrap(err, "failed to check if snowflake secret exists")
 		}
 
 		if !exists {
@@ -109,10 +131,16 @@ func (p *PantherSnowflakeCredentialBootstrap) Exec(createAcctResult snowflake.Cr
 		snowflakeSecretName,
 		createAcctResult,
 	); err != nil {
-		return errors.Wrap(err, "failed to write Snowflake secret")
+		return "", errors.Wrap(err, "failed to write Snowflake secret")
 	}
 
-	return validateCredentials(p.ctx, lambdaClient)
+	credsARN, err := validateCredentials(p.ctx, lambdaClient)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to validate Snowflake credentials")
+	}
+
+	log.Printf("Snowflake credentials validated successfully. Secret ARN: %s", credsARN)
+	return credsARN, nil
 }
 
 func snowflakeSecretExists(ctx context.Context, sm *secretsmanager.Client, secretName string) (bool, error) {
@@ -227,13 +255,13 @@ func updateSnowflakeSecret(
 	return nil
 }
 
-func validateCredentials(ctx context.Context, lambdaClient *lambda.Client) error {
+func validateCredentials(ctx context.Context, lambdaClient *lambda.Client) (string, error) {
 	payload := map[string]string{
 		"validate": "true",
 	}
 	payloadAsBytes, err := json.Marshal(payload)
 	if err != nil {
-		return errors.Wrap(err, "failed to create payload for validating Snowflake credentials")
+		return "", errors.Wrap(err, "failed to create payload for validating Snowflake credentials")
 	}
 	util.LogDebugf(
 		"Invoking Snowflake credential validate lambda (%s) with payload: '%s'",
@@ -249,7 +277,7 @@ func validateCredentials(ctx context.Context, lambdaClient *lambda.Client) error
 
 	result, err := lambdaClient.Invoke(ctx, input)
 	if err != nil {
-		return errors.Wrapf(
+		return "", errors.Wrapf(
 			err,
 			"failed to invoke '%s' lambda to validate Snowflake credentials",
 			snowflakeCredentialBootstrapLambdaName,
@@ -261,52 +289,32 @@ func validateCredentials(ctx context.Context, lambdaClient *lambda.Client) error
 	// the old version of the snowflake cred bootstrapper lambda returns a string instead of json
 	if strings.HasPrefix(string(result.Payload), "\"Validation succeeded for the secret.") {
 		log.Println(string(result.Payload))
-		return nil
+		return "", nil // Old version doesn't return creds_arn
 	}
 
-	// The new version of the snowflake cred bootstrapper lambda returns a json object like a good little lambda.
-	var unmarshaledPayload map[string]interface{}
-	if err := json.Unmarshal(result.Payload, &unmarshaledPayload); err != nil {
-		return errors.Wrapf(err, "couldn't parse payload from validate response: %s", string(result.Payload))
+	// Try to unmarshal as error response first
+	var errorResponse SnowflakeValidationError
+	if err := json.Unmarshal(result.Payload, &errorResponse); err == nil && errorResponse.ErrorMessage != "" {
+		return "", errors.Errorf("validation failed with error: %s", errorResponse.ErrorMessage)
 	}
 
-	// Check if unmarshaledPayload has a field called `errorMessage` - error case
-	// The response body for a failing request should look like:
-	// {
-	// 	"errorMessage": "250003 (08001): 404 Not Found: post https://pantherlabs-zbrown_cc_provisioning_test34fart.snowflakecomputing.co...
-	// 	"errorType": "InterfaceError",
-	// 	"requestId": "2b6332ce-2361-4533-b183-f7f2ae7fbce8",
-	// 	"stackTrace": [
-	// 		<snipped stack trace>
-	// 	]
-	// }
-	//
-	// Details might differ.
-	if errorMessage, ok := unmarshaledPayload["errorMessage"]; ok {
-		return errors.Errorf("validation failed with error: %s", errorMessage)
+	// If not an error, try to unmarshal as success response
+	var response SnowflakeValidationResponse
+	if err := json.Unmarshal(result.Payload, &response); err != nil {
+		return "", errors.Wrapf(err, "couldn't parse payload from validate response: %s", string(result.Payload))
 	}
 
-	// Check if we have a statusCode field and that it's 200 - success case
-	// The response body for a successful request should look like:
-	// {
-	//   "statusCode": 200,
-	//   "headers": { "Content-Type": "application/json" },
-	//   "body": { "message": "Validation succeeded for the secret. <insert more info>" }
-	// }
-	if statusCode, ok := unmarshaledPayload["statusCode"]; ok {
-		if statusCode == 200 {
-			if body, ok := unmarshaledPayload["body"]; ok {
-				if bodyMap, ok := body.(map[string]interface{}); ok {
-					if message, ok := bodyMap["message"]; ok {
-						log.Println(message)
-						return nil
-					}
-				}
-			}
+	util.LogDebugf("unmarshalled PantherSnowflakeCredentialBootstrap response: %s", pp.Sprint(response))
+
+	// Check for successful status code
+	if response.StatusCode == 200 {
+		log.Printf("Validation succeeded with message: %s", response.Body.Message)
+		if response.Body.CredsARN != "" {
+			return response.Body.CredsARN, nil
 		}
 	}
 
-	return errors.Errorf(
+	return "", errors.Errorf(
 		"unexpected response from Snowflake credential validation lambda, report this to your Panther rep: %s",
 		string(result.Payload),
 	)

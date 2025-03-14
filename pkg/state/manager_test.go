@@ -161,7 +161,7 @@ func TestStateUpdates(t *testing.T) {
 		// Verify state
 		state := manager.GetState()
 		assert.Equal(t, results, state.AWSReadinessCheckResults)
-		assert.True(t, state.AWSReadinessCheckSucceeded) // Empty deployment results + S3Select = success
+		assert.True(t, state.AWSReadinessCheckSucceeded) // Empty deployment results = success
 
 		// Test with failure condition - array with errors
 		results = ReadinessCheckResults{
@@ -180,7 +180,7 @@ func TestStateUpdates(t *testing.T) {
 		assert.Equal(t, results, state.AWSReadinessCheckResults)
 		assert.False(t, state.AWSReadinessCheckSucceeded) // Non-empty deployment results = failure
 
-		// Test with S3 select disabled - empty errors but s3 disabled should fail
+		// Test with S3 select disabled - empty errors should still succeed
 		results = ReadinessCheckResults{
 			DeploymentRoleReadinessResults: []map[string]interface{}{},
 			S3SelectEnabled:                false,
@@ -189,10 +189,10 @@ func TestStateUpdates(t *testing.T) {
 		err = manager.UpdateAWSReadinessState(results)
 		require.NoError(t, err)
 
-		// Verify state - should be failed because S3 select is disabled
+		// Verify state - should succeed because S3SelectEnabled is not a criteria
 		state = manager.GetState()
 		assert.Equal(t, results, state.AWSReadinessCheckResults)
-		assert.False(t, state.AWSReadinessCheckSucceeded)
+		assert.True(t, state.AWSReadinessCheckSucceeded) // Should be true since S3SelectEnabled doesn't matter
 	})
 
 	// Test UpdateAWSSnowflakeBootstrapState
@@ -202,20 +202,23 @@ func TestStateUpdates(t *testing.T) {
 		defer manager.Close()
 
 		// Update Snowflake bootstrap state
-		err = manager.UpdateAWSSnowflakeBootstrapState(true)
+		testARN := "arn:aws:secretsmanager:us-west-2:123456789012:secret:test-secret-123456"
+		err = manager.UpdateAWSSnowflakeBootstrapState(true, testARN)
 		require.NoError(t, err)
 
 		// Verify state
 		state := manager.GetState()
 		assert.True(t, state.AWSSnowflakeBootstrapSucceeded)
+		assert.Equal(t, testARN, state.AWSSnowflakeSecretARN)
 
 		// Update to false
-		err = manager.UpdateAWSSnowflakeBootstrapState(false)
+		err = manager.UpdateAWSSnowflakeBootstrapState(false, "")
 		require.NoError(t, err)
 
 		// Verify state
 		state = manager.GetState()
 		assert.False(t, state.AWSSnowflakeBootstrapSucceeded)
+		assert.Empty(t, state.AWSSnowflakeSecretARN)
 	})
 
 	// Test UpdateCertificateState

@@ -3,9 +3,14 @@ package state
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"log"
+	"strings"
 
 	"github.com/pkg/errors"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
+	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/snowflake"
 	"github.com/panther-labs/panther-cli/pkg/rsapem"
 )
@@ -120,6 +125,139 @@ type Row struct {
 	AWSReadinessCheckSucceeded         bool
 	AWSReadinessCheckResults           ReadinessCheckResults
 	AWSSnowflakeBootstrapSucceeded     bool
+	AWSSnowflakeSecretARN              string
 	AWSCertificatesRequested           bool
 	AWSCertificatesResults             CertificateResults
+}
+
+// OutputDetails contains the structured information for formatted output
+type OutputDetails struct {
+	AWSAccountID           string                 `json:"aws_account_id"`
+	PantherSubdomain       string                 `json:"panther_subdomain"`
+	SnowflakeSecretARN     string                 `json:"snowflake_secret_arn"`
+	SnowflakeRegion        string                 `json:"snowflake_region"`
+	SnowflakeEdition       string                 `json:"snowflake_edition"`
+	PantherCertificateARN  string                 `json:"panther_certificate_arn,omitempty"`
+	WildcardCertificateARN string                 `json:"wildcard_certificate_arn,omitempty"`
+	DeploymentStatus       map[string]interface{} `json:"deployment_status"`
+}
+
+// PrettyPrint outputs a human-readable format of the state to the standard logger
+// It requires a config.Config to access some information.
+func (r *Row) PrettyPrint(cfg config.Config) {
+	// Get structured output data
+	output := r.createStructuredOutput(cfg)
+
+	// Create a title caser for English
+	titleCaser := cases.Title(language.English)
+
+	// Print Snowflake Account Details section
+	log.Printf("Snowflake Account Details:\n")
+	log.Printf("  Account Name: %s\n", r.SnowflakeAccountDetails.AccountName)
+	log.Printf("  URL: %s\n", r.SnowflakeAccountDetails.URL)
+	log.Printf("  Admin Username: %s\n", r.SnowflakeAdminUsername)
+	log.Printf("  Region: %s\n", output.SnowflakeRegion)
+	log.Printf("  Edition: %s\n", output.SnowflakeEdition)
+
+	// Print AWS Account ID if available
+	if output.AWSAccountID != "" {
+		log.Printf("AWS Account ID: %s\n", output.AWSAccountID)
+	}
+
+	// Print Panther Subdomain if available
+	if output.PantherSubdomain != "" {
+		log.Printf("Panther Subdomain: %s\n", output.PantherSubdomain)
+	}
+
+	// Print AWS Deployment Status section using map iteration
+	log.Printf("AWS Deployment Status:\n")
+	for key, value := range output.DeploymentStatus {
+		// Format keys for better readability by replacing underscores with spaces and capitalizing
+		formattedKey := strings.ReplaceAll(key, "_", " ")
+		// Using the modern title caser instead of deprecated strings.Title
+		formattedKey = titleCaser.String(formattedKey)
+		log.Printf("  %s: %v\n", formattedKey, value)
+	}
+
+	// Print Snowflake Secret ARN if available and not "unknown"
+	if output.SnowflakeSecretARN != "" && output.SnowflakeSecretARN != "unknown" {
+		log.Printf("Snowflake Secret ARN: %s\n", output.SnowflakeSecretARN)
+	}
+
+	// Print Certificate Status section if certificates exist
+	if output.PantherCertificateARN != "" || output.WildcardCertificateARN != "" {
+		log.Printf("Certificate Status:\n")
+
+		if output.PantherCertificateARN != "" {
+			log.Printf("  Panther Subdomain Certificate:\n")
+			log.Printf("    ARN: %s\n", output.PantherCertificateARN)
+			// Get certificate issuance status which isn't in the OutputDetails
+			isIssued := false
+			if r.AWSCertificatesResults.PantherSubdomain != nil {
+				isIssued = r.AWSCertificatesResults.PantherSubdomain.IsIssued
+			}
+			log.Printf("    Issued: %v\n", isIssued)
+		}
+
+		if output.WildcardCertificateARN != "" {
+			log.Printf("  Wildcard Certificate:\n")
+			log.Printf("    ARN: %s\n", output.WildcardCertificateARN)
+			// Get certificate issuance status which isn't in the OutputDetails
+			isIssued := false
+			if r.AWSCertificatesResults.WildcardSubdomain != nil {
+				isIssued = r.AWSCertificatesResults.WildcardSubdomain.IsIssued
+			}
+			log.Printf("    Issued: %v\n", isIssued)
+		}
+	}
+}
+
+// FormatJSON returns a formatted JSON string representation of the row.
+// It requires a config.Config to generate the output.
+func (r *Row) FormatJSON(cfg config.Config) (string, error) {
+	// Create structured output
+	output := r.createStructuredOutput(cfg)
+
+	// Marshal to JSON with indentation
+	jsonData, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		return "", errors.Wrap(err, "failed to marshal output to JSON")
+	}
+
+	return string(jsonData), nil
+}
+
+// createStructuredOutput creates a structured output object with relevant information
+func (r *Row) createStructuredOutput(cfg config.Config) OutputDetails {
+	// Initialize the output structure
+	output := OutputDetails{
+		AWSAccountID:     cfg.AWSConfig.MustGetAWSAccountID(),
+		PantherSubdomain: cfg.AWSConfig.DomainCertificateConfiguration.PantherSubdomain,
+		SnowflakeRegion:  cfg.NewAccountConfig.PantherRegion,
+		SnowflakeEdition: cfg.NewAccountConfig.SnowflakeEdition,
+		DeploymentStatus: make(map[string]interface{}),
+	}
+
+	// Add certificate ARNs if available
+	if r.AWSCertificatesResults.PantherSubdomain != nil {
+		output.PantherCertificateARN = r.AWSCertificatesResults.PantherSubdomain.CertificateArn
+	}
+	if r.AWSCertificatesResults.WildcardSubdomain != nil {
+		output.WildcardCertificateARN = r.AWSCertificatesResults.WildcardSubdomain.CertificateArn
+	}
+
+	// Add deployment status information
+	output.DeploymentStatus["aws_deployment_role_deployed"] = r.AWSPantherDeploymentRoleDeployed
+	output.DeploymentStatus["aws_bootstrap_tools_deployed"] = r.AWSReadinessBootstrapToolsDeployed
+	output.DeploymentStatus["aws_readiness_check_succeeded"] = r.AWSReadinessCheckSucceeded
+	output.DeploymentStatus["aws_snowflake_bootstrap_succeeded"] = r.AWSSnowflakeBootstrapSucceeded
+
+	// Use the ARN from state if available
+	if r.AWSSnowflakeBootstrapSucceeded && r.AWSSnowflakeSecretARN != "" {
+		output.SnowflakeSecretARN = r.AWSSnowflakeSecretARN
+	} else {
+		output.SnowflakeSecretARN = "unknown"
+	}
+
+	return output
 }

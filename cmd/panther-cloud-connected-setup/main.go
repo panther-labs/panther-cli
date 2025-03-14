@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/aws"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
@@ -91,7 +93,7 @@ func main() {
 			log.Fatalf("failed to update AWS readiness state: %v\n", err)
 		}
 		if !results.HasPassed() {
-			log.Fatalf("AWS readiness check failed")
+			log.Fatalf("AWS readiness check failed - ensure S3 Select is enabled and all deployment role checks pass")
 		}
 	} else {
 		log.Println("Skipping readiness check - already completed")
@@ -99,12 +101,16 @@ func main() {
 
 	// Run Snowflake credential bootstrap if not already done
 	if !currentState.AWSSnowflakeBootstrapSucceeded {
-		if err := runSnowflakeCredentialBootstrap(ctx, cfg, createAcctRes); err != nil {
+		credsARN, err := runSnowflakeCredentialBootstrap(ctx, cfg, createAcctRes)
+		if err != nil {
 			log.Fatalf("failed to run Snowflake credential bootstrap: %v\n", err)
 		}
-		if err := stateManager.UpdateAWSSnowflakeBootstrapState(true); err != nil {
+
+		// Update only the Snowflake bootstrap state
+		if err := stateManager.UpdateAWSSnowflakeBootstrapState(true, credsARN); err != nil {
 			log.Fatalf("failed to update AWS Snowflake bootstrap state: %v\n", err)
 		}
+		log.Printf("Snowflake credential bootstrap completed successfully. Credentials ARN: %s\n", credsARN)
 	} else {
 		log.Println("Skipping Snowflake credential bootstrap - already completed")
 	}
@@ -119,9 +125,69 @@ func main() {
 			log.Fatalf("failed to check certificate status: %v\n", err)
 		}
 	}
+
+	// show this run's results
+	showLastRun(a.ConfigFile)
 }
 
-func showLastRun(configFile string, jsonOutput bool) {
+// writeJSONSupportFile generates a JSON support file using the provided state and config
+// It returns the JSON string for possible further use
+func writeJSONSupportFile(currentState *state.Row, cfg config.Config) (string, error) {
+	// Generate JSON content
+	jsonStr, err := currentState.FormatJSON(cfg)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to format JSON output")
+	}
+
+	// Get components for filename
+	subdomain := cfg.AWSConfig.DomainCertificateConfiguration.PantherSubdomain
+	awsAccountID := cfg.AWSConfig.MustGetAWSAccountID()
+	snowflakeLocator := currentState.SnowflakeAccountDetails.AccountName
+
+	// Construct filename
+	filename := fmt.Sprintf("%s-%s-%s-supportfile.json", subdomain, awsAccountID, snowflakeLocator)
+
+	// Check if file exists
+	if _, err := os.Stat(filename); err == nil {
+		// File exists, prompt for overwrite
+		log.Printf("File %s already exists. Overwrite? (y/n): ", filename)
+		var response string
+		n, err := fmt.Scanln(&response)
+		// Handle potential Scanln errors
+		if err != nil {
+			// EOF or unexpected error
+			if err.Error() != "unexpected newline" {
+				log.Printf("Error reading input: %v", err)
+			}
+			// Default to not overwriting on error
+			log.Println("File not overwritten due to input error.")
+			return jsonStr, nil
+		}
+
+		// Check if we got any input
+		if n == 0 {
+			log.Println("No input received. File not overwritten.")
+			return jsonStr, nil
+		}
+
+		if strings.ToLower(response) != "y" && strings.ToLower(response) != "yes" {
+			log.Println("File not overwritten.")
+			return jsonStr, nil
+		}
+	}
+
+	// Write to file
+	err = os.WriteFile(filename, []byte(jsonStr), 0o600)
+	if err != nil {
+		return jsonStr, errors.Wrapf(err, "failed to write to file %s", filename)
+	}
+
+	log.Printf("Support file written to %s\n", filename)
+	log.Println("Please share this file with your Panther support team.")
+	return jsonStr, nil
+}
+
+func showLastRun(configFile string) {
 	if !state.HasState() {
 		log.Fatalf("No state found. Run the setup process first to create state.")
 	}
@@ -139,42 +205,17 @@ func showLastRun(configFile string, jsonOutput bool) {
 
 	currentState := stateManager.GetState()
 
-	if jsonOutput {
-		// Use pp to output JSON with proper formatting
-		pp.SetDefaultOutput(os.Stdout)
-		pp.Println(currentState)
-		os.Exit(0)
+	// If we get here, use the human-readable format
+	currentState.PrettyPrint(cfg)
+
+	// now write the JSON support file
+	log.Println()
+	log.Println()
+	jsonStr, err := writeJSONSupportFile(currentState, cfg)
+	if err != nil {
+		log.Fatalf("Failed to create JSON support file: %v", err)
 	}
-
-	// Print human-readable format
-	log.Printf("Snowflake Account Details:\n")
-	log.Printf("  Account Name: %s\n", currentState.SnowflakeAccountDetails.AccountName)
-	log.Printf("  URL: %s\n", currentState.SnowflakeAccountDetails.URL)
-	log.Printf("  Admin Username: %s\n", currentState.SnowflakeAdminUsername)
-	log.Printf("  Region: %s\n", currentState.SnowflakeAccountDetails.Region)
-	log.Printf("  Edition: %s\n", currentState.SnowflakeAccountDetails.Edition)
-
-	log.Printf("\nAWS Deployment Status:\n")
-	log.Printf("  Deployment Role Deployed: %v\n", currentState.AWSPantherDeploymentRoleDeployed)
-	log.Printf("  Bootstrap Tools Deployed: %v\n", currentState.AWSReadinessBootstrapToolsDeployed)
-	log.Printf("  Readiness Check Succeeded: %v\n", currentState.AWSReadinessCheckSucceeded)
-	log.Printf("  Snowflake Bootstrap Succeeded: %v\n", currentState.AWSSnowflakeBootstrapSucceeded)
-
-	if currentState.AWSCertificatesRequested {
-		log.Printf("\nCertificate Status:\n")
-		if currentState.AWSCertificatesResults.PantherSubdomain != nil {
-			log.Printf("  Panther Subdomain Certificate:\n")
-			log.Printf("    ARN: %s\n", currentState.AWSCertificatesResults.PantherSubdomain.CertificateArn)
-			log.Printf("    Issued: %v\n", currentState.AWSCertificatesResults.PantherSubdomain.IsIssued)
-		}
-		if currentState.AWSCertificatesResults.WildcardSubdomain != nil {
-			log.Printf("  Wildcard Certificate:\n")
-			log.Printf("    ARN: %s\n", currentState.AWSCertificatesResults.WildcardSubdomain.CertificateArn)
-			log.Printf("    Issued: %v\n", currentState.AWSCertificatesResults.WildcardSubdomain.IsIssued)
-		}
-	}
-
-	os.Exit(0)
+	util.LogDebugln(jsonStr)
 }
 
 func setupCertificates(ctx context.Context, cfg config.Config, stateManager *state.Manager) error {
@@ -274,7 +315,7 @@ func checkCertificateStatus(ctx context.Context, cfg config.Config, stateManager
 	if (!certs.PantherSubdomain.IsIssued && certs.PantherSubdomain != nil) ||
 		(!certs.WildcardSubdomain.IsIssued && certs.WildcardSubdomain != nil) {
 		log.Println(
-			"\nSome certificates are still pending validation. Please ensure you have created the following DNS records:",
+			"Some certificates are still pending validation. Please ensure you have created the following DNS records:",
 		)
 		printDNSValidationInstructions(certs)
 	}
@@ -285,7 +326,7 @@ func checkCertificateStatus(ctx context.Context, cfg config.Config, stateManager
 func printDNSValidationInstructions(certs state.CertificateResults) {
 	if certs.PantherSubdomain != nil {
 		log.Printf(
-			"\nFor Panther Subdomain (%s), create a DNS record with the following information:\n",
+			"For Panther Subdomain (%s), create a DNS record with the following information:\n",
 			certs.PantherSubdomain.ValidationDetails.DomainName,
 		)
 		log.Printf("  Record Type:  %s\n", certs.PantherSubdomain.ValidationDetails.RecordType)
@@ -295,7 +336,7 @@ func printDNSValidationInstructions(certs state.CertificateResults) {
 
 	if certs.WildcardSubdomain != nil {
 		log.Printf(
-			"\nFor Wildcard Certificate (%s), create a DNS record with the following information:\n",
+			"For Wildcard Certificate (%s), create a DNS record with the following information:\n",
 			certs.WildcardSubdomain.ValidationDetails.DomainName,
 		)
 		log.Printf("  Record Type:  %s\n", certs.WildcardSubdomain.ValidationDetails.RecordType)
@@ -400,15 +441,16 @@ func runSnowflakeCredentialBootstrap(
 	ctx context.Context,
 	cfg config.Config,
 	createAcctRes snowflake.CreateAccountResult,
-) error {
+) (string, error) {
 	bootstrap, err := aws.NewPantherSnowflakeCredentialBootstrap(ctx, cfg)
 	if err != nil {
-		return errors.Wrap(err, "failed to initialize Snowflake credential bootstrap")
+		return "", errors.Wrap(err, "failed to initialize Snowflake credential bootstrap")
 	}
 
-	if err := bootstrap.Exec(createAcctRes); err != nil {
-		return errors.Wrap(err, "failed to execute Snowflake credential bootstrap")
+	credsARN, err := bootstrap.Exec(createAcctRes)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to execute Snowflake credential bootstrap")
 	}
 
-	return nil
+	return credsARN, nil
 }
