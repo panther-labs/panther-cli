@@ -24,7 +24,7 @@ type AccountSetup struct {
 func (a *AccountSetup) Connect(ctx context.Context, cfg CreateAccountResult) error {
 	tryEnableSnowflakeDebugLogging()
 
-	dsn := formatSnowflakeDSNFromRSAKey(
+	dsn := util.FormatSnowflakeDSNFromRSAKey(
 		cfg.GetAWSRegion(),
 		cfg.AccountLocator,
 		"PANTHERACCOUNTADMIN",
@@ -59,7 +59,7 @@ func (a *AccountSetup) Connect(ctx context.Context, cfg CreateAccountResult) err
 		return nil
 	}
 
-	if err := backoff.Retry(oper, getDefaultExponentialBackoffRetrier()); err != nil {
+	if err := backoff.Retry(oper, util.GetDefaultExponentialBackoffRetrier()); err != nil {
 		util.LogDebugf("Failed to connect to new Snowflake account (%s) after retries: %v\n", cfg.AccountLocator, err)
 		return errors.Wrap(err, "failed to connect to new Snowflake account")
 	}

@@ -17,7 +17,6 @@ import (
 
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/snowflake"
-	"github.com/panther-labs/panther-cli/pkg/rsapem"
 	"github.com/panther-labs/panther-cli/pkg/util"
 )
 
@@ -188,68 +187,6 @@ func bootstrapCredentials(ctx context.Context, lambdaClient *lambda.Client, host
 			"failed to invoke '%s' lambda to bootstrap Snowflake credentials",
 			snowflakeCredentialBootstrapLambdaName,
 		)
-	}
-
-	return nil
-}
-
-func updateSnowflakeSecret(
-	ctx context.Context,
-	sm *secretsmanager.Client,
-	secretName string,
-	createAcctResult snowflake.CreateAccountResult,
-) error {
-	getSecretValueInput := &secretsmanager.GetSecretValueInput{
-		SecretId: aws.String(secretName),
-	}
-
-	getSecretValueOutput, err := sm.GetSecretValue(ctx, getSecretValueInput)
-	if err != nil {
-		return errors.Wrap(err, "failed to get existing Snowflake secret")
-	}
-
-	var secretMap map[string]string
-	if err := json.Unmarshal([]byte(*getSecretValueOutput.SecretString), &secretMap); err != nil {
-		return errors.Wrap(err, "failed to unmarshal existing Snowflake secret")
-	}
-
-	fullyQualifiedAccount, err := createAcctResult.GetFullyQualifiedAccountName()
-	if err != nil {
-		return errors.Wrap(err, "failed to get fully qualified account name")
-	}
-
-	privateKey, err := rsapem.EncodeRSAPEMPrivateKey(createAcctResult.AdminRSAKey)
-	if err != nil {
-		return errors.Wrap(err, "encoding PrivateKey for PANTHERACCOUNTADMIN")
-	}
-	publicKey, err := rsapem.EncodeRSAPEMPublicKey(&createAcctResult.AdminRSAKey.PublicKey)
-	if err != nil {
-		return errors.Wrap(err, "encoding PublicKey for PANTHERACCOUNTADMIN")
-	}
-	createTime := time.Now().UTC().Format(time.RFC3339)
-
-	// Update the secret values
-	secretMap["host"] = createAcctResult.URL
-	secretMap["account"] = fullyQualifiedAccount
-	secretMap["privateKey1"] = privateKey
-	secretMap["publicKey1"] = publicKey
-	secretMap["privateKey1CreateTimestamp"] = createTime
-
-	// Marshal the updated secret back to JSON
-	updatedSecretString, err := json.Marshal(secretMap)
-	if err != nil {
-		return errors.Wrap(err, "failed to marshal updated Snowflake secret")
-	}
-
-	// write it back to Secrets Manager
-	putSecretValueInput := &secretsmanager.PutSecretValueInput{
-		SecretId:     aws.String(secretName),
-		SecretString: aws.String(string(updatedSecretString)),
-	}
-
-	_, err = sm.PutSecretValue(ctx, putSecretValueInput)
-	if err != nil {
-		return errors.Wrap(err, "failed to write Snowflake secret")
 	}
 
 	return nil
