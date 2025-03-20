@@ -167,7 +167,10 @@ func monitorStackProgress(ctx context.Context, cfnClient *cloudformation.Client,
 		// Check for terminal states
 		switch stack.StackStatus {
 		case types.StackStatusCreateComplete, types.StackStatusUpdateComplete:
-			log.Println("Stack operation completed successfully.")
+			log.Println(
+				"Stack operation completed successfully. Waiting 10 seconds for stack resources to become available...",
+			)
+			time.Sleep(10 * time.Second)
 			return nil
 		case types.StackStatusCreateFailed,
 			types.StackStatusRollbackFailed,
