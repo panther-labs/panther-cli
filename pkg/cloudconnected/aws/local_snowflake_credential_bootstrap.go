@@ -17,6 +17,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	snowflakeSecretName = "panther-managed-accountadmin-secret"
+)
+
 type SnowflakeCredentialSecret struct {
 	Account     string `json:"account"     `
 	Username    string `json:"user"        `
