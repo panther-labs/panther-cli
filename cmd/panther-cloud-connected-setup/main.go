@@ -442,14 +442,18 @@ func runSnowflakeCredentialBootstrap(
 	cfg config.Config,
 	createAcctRes snowflake.CreateAccountResult,
 ) (string, error) {
-	bootstrap, err := aws.NewPantherSnowflakeCredentialBootstrap(ctx, cfg)
+	bootstrap, err := aws.NewLocalSnowflakeCredentialBootstrap(ctx, cfg.AWSConfig)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to initialize Snowflake credential bootstrap")
 	}
 
-	credsARN, err := bootstrap.Exec(createAcctRes)
+	credsARN, err := bootstrap.WriteSecret(ctx, createAcctRes)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to execute Snowflake credential bootstrap")
+	}
+
+	if err := bootstrap.ValidateSecret(ctx); err != nil {
+		return "", errors.Wrap(err, "failed to validate Snowflake credentials")
 	}
 
 	return credsARN, nil
