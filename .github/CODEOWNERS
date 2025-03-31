@@ -1,0 +1,11 @@
+# Build/Release Configuration
+/.github/                                   @panther-labs/platform
+.goreleaser.yaml                            @panther-labs/platform
+LICENSE                                     @panther-labs/platform
+justfile                                    @panther-labs/platform
+
+# CLI binaries
+/cmd/panther-cloud-connected-setup/         @panther-labs/platform
+
+# Platform-specific Logic
+/pkg/cloudconnected/                        @panther-labs/platform

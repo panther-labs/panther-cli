@@ -2,6 +2,7 @@ package state
 
 import (
 	"database/sql"
+	"log"
 	"os"
 
 	_ "github.com/mattn/go-sqlite3" // we do not support any other SQL database
@@ -39,7 +40,9 @@ func NewDB() (*DB, error) {
 	}
 
 	if _, err := db.Exec(createTableSQL); err != nil {
-		db.Close()
+		if err := db.Close(); err != nil {
+			return nil, errors.Wrap(err, "failed to create table")
+		}
 		return nil, errors.Wrap(err, "failed to create table")
 	}
 
@@ -51,7 +54,9 @@ func NewDB() (*DB, error) {
 	// database is durable and that we can recover from any crash. Writes are
 	// very infrequent.
 	if _, err := db.Exec("PRAGMA synchronous=EXTRA; PRAGMA journal_mode = DELETE;"); err != nil {
-		db.Close()
+		if err := db.Close(); err != nil {
+			return nil, errors.Wrap(err, "failed to set synchronous mode")
+		}
 		return nil, errors.Wrap(err, "failed to set synchronous mode")
 	}
 
@@ -119,7 +124,11 @@ func HasState() bool {
 	if err != nil {
 		return false
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Fatalf("failed to close database: %v\n", err)
+		}
+	}()
 
 	var count int
 	err = db.QueryRow("SELECT COUNT(*) FROM execution_state").Scan(&count)

@@ -3,6 +3,7 @@ package state
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"log"
 	"os"
 	"testing"
 
@@ -16,7 +17,11 @@ import (
 func TestNewManager(t *testing.T) {
 	// Clean up the database file after tests
 	defer func() {
-		os.Remove("panther-cli-state.db")
+		if err := os.Remove("panther-cli-state.db"); err != nil {
+			if !os.IsNotExist(err) {
+				log.Fatalf("failed to remove state database: %v\n", err)
+			}
+		}
 	}()
 
 	// Create a simple test config
@@ -100,7 +105,11 @@ func TestNewManager(t *testing.T) {
 func TestStateUpdates(t *testing.T) {
 	// Clean up the database file after tests
 	defer func() {
-		os.Remove("panther-cli-state.db")
+		if err := os.Remove("panther-cli-state.db"); err != nil {
+			if !os.IsNotExist(err) {
+				log.Fatalf("failed to remove state database: %v\n", err)
+			}
+		}
 	}()
 
 	// Create a simple test config
@@ -123,7 +132,11 @@ func TestStateUpdates(t *testing.T) {
 	t.Run("UpdateAWSBootstrapState", func(t *testing.T) {
 		manager, err := NewManager(cfg)
 		require.NoError(t, err)
-		defer manager.Close()
+		defer func() {
+			if err := manager.Close(); err != nil {
+				log.Fatalf("failed to close manager: %v\n", err)
+			}
+		}()
 
 		// Update bootstrap state
 		err = manager.UpdateAWSBootstrapState(true)
@@ -146,7 +159,11 @@ func TestStateUpdates(t *testing.T) {
 	t.Run("UpdateAWSReadinessState", func(t *testing.T) {
 		manager, err := NewManager(cfg)
 		require.NoError(t, err)
-		defer manager.Close()
+		defer func() {
+			if err := manager.Close(); err != nil {
+				log.Fatalf("failed to close manager: %v\n", err)
+			}
+		}()
 
 		// Create test readiness results - empty array for success
 		results := ReadinessCheckResults{
@@ -199,7 +216,11 @@ func TestStateUpdates(t *testing.T) {
 	t.Run("UpdateAWSSnowflakeBootstrapState", func(t *testing.T) {
 		manager, err := NewManager(cfg)
 		require.NoError(t, err)
-		defer manager.Close()
+		defer func() {
+			if err := manager.Close(); err != nil {
+				log.Fatalf("failed to close manager: %v\n", err)
+			}
+		}()
 
 		// Update Snowflake bootstrap state
 		testARN := "arn:aws:secretsmanager:us-west-2:123456789012:secret:test-secret-123456"
@@ -225,7 +246,11 @@ func TestStateUpdates(t *testing.T) {
 	t.Run("UpdateCertificateState", func(t *testing.T) {
 		manager, err := NewManager(cfg)
 		require.NoError(t, err)
-		defer manager.Close()
+		defer func() {
+			if err := manager.Close(); err != nil {
+				log.Fatalf("failed to close manager: %v\n", err)
+			}
+		}()
 
 		// Create test certificate data
 		certResult := aws.CertificateRegistrationResult{
@@ -306,7 +331,11 @@ func TestStateUpdates(t *testing.T) {
 func TestSnowflakeState(t *testing.T) {
 	// Clean up the database file after tests
 	defer func() {
-		os.Remove("panther-cli-state.db")
+		if err := os.Remove("panther-cli-state.db"); err != nil {
+			if !os.IsNotExist(err) {
+				log.Fatalf("failed to remove state database: %v\n", err)
+			}
+		}
 	}()
 
 	// Create a simple test config
@@ -321,7 +350,11 @@ func TestSnowflakeState(t *testing.T) {
 	t.Run("UpdateSnowflakeState", func(t *testing.T) {
 		manager, err := NewManager(cfg)
 		require.NoError(t, err)
-		defer manager.Close()
+		defer func() {
+			if err := manager.Close(); err != nil {
+				log.Fatalf("failed to close manager: %v\n", err)
+			}
+		}()
 
 		// Create a proper RSA key for testing
 		privateKey, err := rsa.GenerateKey(rand.Reader, 2048)

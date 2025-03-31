@@ -3,6 +3,7 @@ package util
 import (
 	"context"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -26,7 +27,11 @@ func getURLAsString(ctx context.Context, url string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Fatalf("failed to close response body: %v\n", err)
+		}
+	}()
 
 	// Check for HTTP errors
 	if resp.StatusCode != http.StatusOK {
