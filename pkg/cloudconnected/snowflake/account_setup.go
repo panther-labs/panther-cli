@@ -134,9 +134,9 @@ func (a *AccountSetup) SetupCustomerAccountAdminUser(cfg config.NewAccountConfig
 		return errors.Wrapf(err, "error scanning result from CREATE USER query")
 	}
 
-	expectedCreateUserResults := []string{
-		fmt.Sprintf("User %s successfully created.", cfg.AdminUsername),
-		fmt.Sprintf("%s already exists, statement succeeded.", cfg.AdminUsername),
+	expectedCreateUserResults := map[string]string{
+		"userCreated": fmt.Sprintf("User %s successfully created.", cfg.AdminUsername),
+		"userExists":  fmt.Sprintf("%s already exists, statement succeeded.", cfg.AdminUsername),
 	}
 	expectedResultFound := false
 
@@ -151,7 +151,11 @@ func (a *AccountSetup) SetupCustomerAccountAdminUser(cfg config.NewAccountConfig
 		return errors.Errorf("unexpected result when creating %s: %s", cfg.AdminUsername, result)
 	}
 
-	log.Printf("Created new Snowflake '%s' user (%s)", cfg.AdminUsername, cfg.AdminEmail)
+	if strings.EqualFold(result, expectedCreateUserResults["userCreated"]) {
+		log.Printf("Created new Snowflake '%s' user (%s)", cfg.AdminUsername, cfg.AdminEmail)
+	} else {
+		log.Printf("User %s already exists", cfg.AdminUsername)
+	}
 
 	// grant the necessary roles to PANTHERACCOUNTADMIN
 	const grantQuery = `GRANT ROLE SYSADMIN, SECURITYADMIN, ACCOUNTADMIN TO USER %s;`
