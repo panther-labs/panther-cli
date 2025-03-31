@@ -27,7 +27,11 @@ func NewConfigFromPath(path string) (Config, error) {
 	if err != nil {
 		return cfg, err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Fatalf("failed to close config file: %v\n", err)
+		}
+	}()
 
 	decoder := yaml.NewDecoder(file)
 	if err := decoder.Decode(&cfg); err != nil {

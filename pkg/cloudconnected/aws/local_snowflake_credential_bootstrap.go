@@ -116,7 +116,11 @@ func (l *LocalSnowflakeCredentialBootstrap) ValidateSecret(ctx context.Context) 
 		return errors.Wrapf(err, "failed to open connection to Snowflake host: '%s'", secret.Host)
 	}
 
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Fatalf("failed to close Snowflake connection: %v\n", err)
+		}
+	}()
 
 	if err := db.Ping(); err != nil {
 		return errors.Wrapf(err, "failed to ping Snowflake host: '%s'", secret.Host)

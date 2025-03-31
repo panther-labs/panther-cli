@@ -1,6 +1,7 @@
 package state
 
 import (
+	"log"
 	"os"
 	"testing"
 
@@ -10,8 +11,17 @@ import (
 
 func TestDB(t *testing.T) {
 	// Clean up any existing DB file before and after tests
-	os.Remove("panther-cli-state.db")
-	defer os.Remove("panther-cli-state.db")
+	if err := os.Remove("panther-cli-state.db"); err != nil {
+		if !os.IsNotExist(err) {
+			log.Fatalf("failed to remove state database: %v\n", err)
+		}
+	}
+
+	defer func() {
+		if err := os.Remove("panther-cli-state.db"); err != nil {
+			log.Fatalf("failed to remove state database: %v\n", err)
+		}
+	}()
 
 	// Test DB creation
 	t.Run("Create new DB", func(t *testing.T) {
@@ -32,7 +42,12 @@ func TestDB(t *testing.T) {
 	t.Run("State operations", func(t *testing.T) {
 		db, err := NewDB()
 		require.NoError(t, err)
-		defer db.Close()
+
+		defer func() {
+			if err := db.Close(); err != nil {
+				log.Fatalf("failed to close database: %v\n", err)
+			}
+		}()
 
 		// Test getting non-existent state
 		configHash := "abcdef1234567890"
@@ -75,7 +90,12 @@ func TestDB(t *testing.T) {
 	t.Run("Multiple configs", func(t *testing.T) {
 		db, err := NewDB()
 		require.NoError(t, err)
-		defer db.Close()
+
+		defer func() {
+			if err := db.Close(); err != nil {
+				log.Fatalf("failed to close database: %v\n", err)
+			}
+		}()
 
 		// Create multiple states with different config hashes
 		hash1 := "hash1"

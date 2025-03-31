@@ -45,11 +45,15 @@ func validateArgs() (a args) {
 	}
 
 	if a.Verbose {
-		os.Setenv("DEBUG", "true")
+		if err := os.Setenv("DEBUG", "true"); err != nil {
+			log.Fatalf("failed to set DEBUG environment variable: %v\n", err)
+		}
 	}
 
 	if a.VerboseSnowflakeLogging {
-		os.Setenv("SNOWFLAKE_DEBUG", "true")
+		if err := os.Setenv("SNOWFLAKE_DEBUG", "true"); err != nil {
+			log.Fatalf("failed to set SNOWFLAKE_DEBUG environment variable: %v\n", err)
+		}
 	}
 
 	return a

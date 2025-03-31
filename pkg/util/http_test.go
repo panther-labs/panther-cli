@@ -14,13 +14,16 @@ func TestGetURLAsString(t *testing.T) {
 	// Create a test server
 	testContent := "test http content"
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/success" {
+		switch r.URL.Path {
+		case "/success":
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(testContent))
-		} else if r.URL.Path == "/notfound" {
+		case "/notfound":
 			w.WriteHeader(http.StatusNotFound)
-		} else if r.URL.Path == "/error" {
+		case "/error":
 			w.WriteHeader(http.StatusInternalServerError)
+		default:
+			w.WriteHeader(http.StatusNotFound)
 		}
 	}))
 	defer server.Close()
