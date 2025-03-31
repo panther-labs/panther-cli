@@ -3,6 +3,7 @@ package util
 import (
 	"context"
 	"io"
+	"log"
 	"os"
 	"strings"
 
@@ -31,7 +32,11 @@ func (f fileLoader) load(_ context.Context, uri string) (string, error) {
 	if err != nil {
 		return "", errors.Errorf("failed to open file: %v", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Fatalf("failed to close file: %v\n", err)
+		}
+	}()
 
 	content, err := io.ReadAll(file)
 	if err != nil {

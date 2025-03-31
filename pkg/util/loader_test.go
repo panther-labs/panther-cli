@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"log"
 	"os"
 	"path/filepath"
 	"testing"
@@ -15,7 +16,11 @@ func TestLoadContent_FileLoading(t *testing.T) {
 	content := "test content"
 	tmpFile, err := os.CreateTemp("", "test-*.txt")
 	require.NoError(t, err)
-	defer os.Remove(tmpFile.Name())
+	defer func() {
+		if err := os.Remove(tmpFile.Name()); err != nil {
+			log.Fatalf("failed to remove temporary file: %v\n", err)
+		}
+	}()
 
 	_, err = tmpFile.WriteString(content)
 	require.NoError(t, err)

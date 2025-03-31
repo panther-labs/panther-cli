@@ -38,7 +38,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to initialize state manager: %v\n", err)
 	}
-	defer stateManager.Close()
+	defer func() {
+		if err := stateManager.Close(); err != nil {
+			log.Fatalf("failed to close state manager: %v\n", err)
+		}
+	}()
 
 	ctx := context.Background()
 	currentState := stateManager.GetState()
@@ -201,7 +205,11 @@ func showLastRun(configFile string) {
 	if err != nil {
 		log.Fatalf("failed to initialize state manager: %v\n", err)
 	}
-	defer stateManager.Close()
+	defer func() {
+		if err := stateManager.Close(); err != nil {
+			log.Fatalf("failed to close state manager: %v\n", err)
+		}
+	}()
 
 	currentState := stateManager.GetState()
 
@@ -353,7 +361,11 @@ func setupSnowflakeAccount(ctx context.Context, cfg config.Config) (snowflake.Cr
 	if err := snow.Connect(ctx, cfg.SnowflakeOrgConfig); err != nil {
 		return snowflake.CreateAccountResult{}, errors.Wrap(err, "failed to connect to Snowflake")
 	}
-	defer snow.Close()
+	defer func() {
+		if err := snow.Close(); err != nil {
+			log.Fatalf("failed to close Snowflake connection: %v\n", err)
+		}
+	}()
 
 	createAcctRes, err := snow.CreateNewSnowflakeAccount(cfg.NewAccountConfig)
 	if err != nil {
@@ -373,7 +385,11 @@ func snowflakeAdminUserSetup(
 	if err := snowAcctSetup.Connect(ctx, createAcctRes); err != nil {
 		return errors.Wrap(err, "failed to connect to new Snowflake account")
 	}
-	defer snowAcctSetup.Close()
+	defer func() {
+		if err := snowAcctSetup.Close(); err != nil {
+			log.Fatalf("failed to close Snowflake account setup: %v\n", err)
+		}
+	}()
 
 	if err := snowAcctSetup.SetupCustomerAccountAdminUser(cfg.NewAccountConfig); err != nil {
 		return errors.Wrap(err, "failed to setup Panther account admin user")
