@@ -12,6 +12,7 @@ on:
       - go.mod
       - go.sum
       - .goreleaser.yaml
+  workflow_dispatch:
 
 
 permissions:
