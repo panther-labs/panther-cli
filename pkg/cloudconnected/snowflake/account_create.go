@@ -106,7 +106,7 @@ CREATE ACCOUNT %s
 
 	row := a.sql.QueryRowContext(
 		a.ctx,
-		fmt.Sprintf(query, cfg.AccountName), // we cannot parameterize the account name
+		fmt.Sprintf(query, cfg.SnowflakeAccountName), // we cannot parameterize the account name
 		pubkey,
 		cfg.SnowflakeEdition,
 		cfg.GetSnowflakeRegion(),

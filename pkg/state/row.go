@@ -132,14 +132,19 @@ type Row struct {
 
 // OutputDetails contains the structured information for formatted output
 type OutputDetails struct {
-	AWSAccountID           string                 `json:"aws_account_id"`
-	PantherSubdomain       string                 `json:"panther_subdomain"`
-	SnowflakeSecretARN     string                 `json:"snowflake_secret_arn"`
-	SnowflakeRegion        string                 `json:"snowflake_region"`
-	SnowflakeEdition       string                 `json:"snowflake_edition"`
-	PantherCertificateARN  string                 `json:"panther_certificate_arn,omitempty"`
-	WildcardCertificateARN string                 `json:"wildcard_certificate_arn,omitempty"`
-	DeploymentStatus       map[string]interface{} `json:"deployment_status"`
+	AWSAccountID              string                 `json:"aws_account_id"`
+	PantherSubdomain          string                 `json:"panther_subdomain"`
+	DesiredPantherAccountName string                 `json:"desired_panther_account_name"`
+	AdminUserFirstName        string                 `json:"admin_user_first_name"`
+	AdminUserLastName         string                 `json:"admin_user_last_name"`
+	IpAddressAllowList        []string               `json:"ip_address_allow_list,omitempty"`
+	SnowflakeSecretARN        string                 `json:"snowflake_secret_arn"`
+	SnowflakeRegion           string                 `json:"snowflake_region"`
+	SnowflakeEdition          string                 `json:"snowflake_edition"`
+	PantherEdition            string                 `json:"panther_edition"`
+	PantherCertificateARN     string                 `json:"panther_certificate_arn,omitempty"`
+	WildcardCertificateARN    string                 `json:"wildcard_certificate_arn,omitempty"`
+	DeploymentStatus          map[string]interface{} `json:"deployment_status"`
 }
 
 // PrettyPrint outputs a human-readable format of the state to the standard logger
@@ -231,11 +236,16 @@ func (r *Row) FormatJSON(cfg config.Config) (string, error) {
 func (r *Row) createStructuredOutput(cfg config.Config) OutputDetails {
 	// Initialize the output structure
 	output := OutputDetails{
-		AWSAccountID:     cfg.AWSConfig.MustGetAWSAccountID(),
-		PantherSubdomain: cfg.AWSConfig.DomainCertificateConfiguration.PantherSubdomain,
-		SnowflakeRegion:  cfg.NewAccountConfig.PantherRegion,
-		SnowflakeEdition: cfg.NewAccountConfig.SnowflakeEdition,
-		DeploymentStatus: make(map[string]interface{}),
+		AWSAccountID:              cfg.AWSConfig.MustGetAWSAccountID(),
+		PantherSubdomain:          cfg.AWSConfig.DomainCertificateConfiguration.PantherSubdomain,
+		DesiredPantherAccountName: cfg.NewAccountConfig.DesiredPantherAccountName,
+		AdminUserFirstName:        cfg.NewAccountConfig.AdminUserFirstName,
+		AdminUserLastName:         cfg.NewAccountConfig.AdminUserLastName,
+		IpAddressAllowList:        cfg.NewAccountConfig.IpAddressAllowList,
+		SnowflakeRegion:           cfg.NewAccountConfig.GetSnowflakeRegion(),
+		SnowflakeEdition:          cfg.NewAccountConfig.SnowflakeEdition,
+		PantherEdition:            cfg.NewAccountConfig.PantherEdition,
+		DeploymentStatus:          make(map[string]interface{}),
 	}
 
 	// Add certificate ARNs if available
