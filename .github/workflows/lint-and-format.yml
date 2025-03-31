@@ -23,7 +23,6 @@ jobs:
         uses: golangci/golangci-lint-action@a5307c8f68bcd21ff73283f8629eb09caa60d7a7
         with:
           args: --timeout 10m --verbose --allow-parallel-runners --max-same-issues 0 --max-issues-per-linter 0
-          version: v1.64
 
   format:
     name: format
