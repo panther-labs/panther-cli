@@ -6,6 +6,13 @@ on:
       - main
     tags:
       - 'v*'
+    paths:
+      - cmd/**
+      - pkg/**
+      - go.mod
+      - go.sum
+      - .goreleaser.yaml
+
 
 permissions:
   contents: write
