@@ -12,7 +12,7 @@ type SnowflakeOrgConfig struct {
 
 //nolint:lll
 type NewAccountConfig struct {
-	SnowflakeAccountName string `yaml:"SnowflakeAccountName" validate:"required,validateSnowflakeAccountName"`
+	SnowflakeAccountName string `yaml:"SnowflakeAccountName" validate:"required,validAcctName"`
 	SnowflakeEdition     string `yaml:"SnowflakeEdition"     validate:"required,oneof=STANDARD ENTERPRISE BUSINESS_CRITICAL"` // if PantherEdition!=Enterprise, SnowflakeEdition can be whatever
 
 	AdminUsername      string `yaml:"AdminUsername"      validate:"required,validAdminName"`

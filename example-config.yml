@@ -19,8 +19,11 @@ SnowflakeOrgConfig:
 NewAccountConfig:
   AccountName: <YOUR NEW SNOWFLAKE ACCOUNT NAME> # e.g. yourcompany-panther
   AdminUsername: <YOUR NEW SNOWFLAKE ACCOUNT ADMIN USERNAME> # e.g. yourusername
+  AdminUserFirstName: <YOUR ADMIN USER'S FIRST NAME>
+  AdminUserLastName: <YOUR ADMIN USER'S LAST NAME>
   AdminPassword: 123455678-DE3C-4F67-DDDD-1234asdfasdf! # replace with a strong password
   AdminEmail: <YOUR ADMIN USER'S EMAIL>
   SnowflakeEdition: ENTERPRISE # STANDARD, BUSINESS_CRITICAL, or ENTERPRISE - we recommend ENTERPRISE for full features
   PantherEdition: ENTERPRISE # ESSENTIALS or ENTERPRISE - if this is ENTERPRISE, SnowflakeEdition must be ENTERPRISE
   PantherRegion: <YOUR PANTHER REGION> # Format this as an AWS region name - e.g. us-west-2
+  DesiredPantherAccountName: <YOUR PREFERRED PANTHER ACCOUNT NAME> # This is the name that will be displayed in the Panther UI
