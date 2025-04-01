@@ -11,7 +11,7 @@ var validate *validator.Validate = validator.New(validator.WithRequiredStructEna
 
 func init() {
 	util.Must(
-		validate.RegisterValidation("validAcctName", validateAccountName),
+		validate.RegisterValidation("validAcctName", validateSnowflakeAccountName),
 		"couldn't register validAcctName validation",
 	)
 	util.Must(validate.RegisterValidation("validAdminName", validateAdminName),
@@ -24,7 +24,7 @@ func init() {
 	validate.RegisterStructValidation(validateEditionsMatch, NewAccountConfig{})
 }
 
-func validateAccountName(fl validator.FieldLevel) bool {
+func validateSnowflakeAccountName(fl validator.FieldLevel) bool {
 	accountNameRegex := regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
 	return accountNameRegex.MatchString(fl.Field().String())
 }
