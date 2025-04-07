@@ -20,7 +20,7 @@ jobs:
         run: go mod download
 
       - name: golangci-lint run
-        uses: golangci/golangci-lint-action@9551b25870123cbad297208ba05e4f0f2b0ffd59
+        uses: golangci/golangci-lint-action@642f8ee6318345505aa948469375799b64083147
         with:
           args: --timeout 10m --verbose --allow-parallel-runners --max-same-issues 0 --max-issues-per-linter 0
 
