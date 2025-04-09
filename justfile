@@ -46,6 +46,12 @@ build-clean: clean build-full-upgrade
 run-panther-cloud-connected-setup: build
     ./bin/panther-cloud-connected-setup/panther-cloud-connected-setup --config-file config.yml --verbose
 
+install-goreleaser:
+    go install github.com/goreleaser/goreleaser/v2@latest
+
+build-release: install-goreleaser
+    goreleaser build --snapshot --clean
+
 # Run all tests
 test:
     go test ./pkg/...
