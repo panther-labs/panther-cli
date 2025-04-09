@@ -14,7 +14,7 @@ type AWSConfig struct {
 	AccessKeyID     string `yaml:"AccessKeyID"     validate:"required"`
 	SecretAccessKey string `yaml:"SecretAccessKey" validate:"required"`
 	SessionToken    string `yaml:"SessionToken"`
-	Region          string `yaml:"Region"          validate:"required,validPantherRegion"`
+	Region          string `yaml:"-"               validate:"required,validPantherRegion"`
 
 	CloudFormationConfig           CloudFormationConfig           `yaml:"CloudFormationConfig"           validate:"required"`
 	DomainCertificateConfiguration DomainCertificateConfiguration `yaml:"DomainCertificateConfiguration" validate:"required"`

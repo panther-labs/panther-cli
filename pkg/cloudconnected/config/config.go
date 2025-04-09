@@ -41,6 +41,10 @@ func NewConfigFromPath(path string) (Config, error) {
 	// initialize defaults within the config, this is recursive
 	defaults.SetDefaults(&cfg)
 
+	// We need the region, but the customer doesn't need to provide it twice. It
+	// should always match up between the two configs.
+	cfg.AWSConfig.Region = cfg.NewAccountConfig.PantherRegion
+
 	// Read the OrgAdminPrivateKey from file
 	if cfg.SnowflakeOrgConfig.OrgAdminPrivateKeyPath != "" {
 		privateKey, err := os.ReadFile(cfg.SnowflakeOrgConfig.OrgAdminPrivateKeyPath)

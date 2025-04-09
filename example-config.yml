@@ -1,7 +1,6 @@
 AWSConfig:
   AccessKeyID: <YOUR AWS ACCESS KEY ID>
   SecretAccessKey: <YOUR AWS SECRET ACCESS KEY>
-  Region: <YOUR AWS REGION>
   CloudFormationConfig:
     DeploymentRoleName: PantherDeploymentRole # WE RECOMMEND USING THIS VALUE
     IdentityAccountId: <ASK FOR THIS INFORMATION FROM PANTHER>
