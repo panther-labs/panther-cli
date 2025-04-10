@@ -15,7 +15,6 @@ const (
 	CREATE TABLE IF NOT EXISTS execution_state (
 		config_hash TEXT PRIMARY KEY,
 		snowflake_admin_username TEXT,
-		snowflake_admin_password TEXT,
 		snowflake_account_details JSON,
 		aws_panther_deployment_role_deployed BOOLEAN,
 		aws_readiness_bootstrap_tools_deployed BOOLEAN,
@@ -74,7 +73,6 @@ func (d *DB) GetState(configHash string) (*Row, error) {
 		SELECT
 			config_hash,
 			snowflake_admin_username,
-			snowflake_admin_password,
 			snowflake_account_details,
 			aws_panther_deployment_role_deployed,
 			aws_readiness_bootstrap_tools_deployed,
@@ -91,7 +89,6 @@ func (d *DB) GetState(configHash string) (*Row, error) {
 	err := d.db.QueryRow(query, configHash).Scan(
 		&row.ConfigHash,
 		&row.SnowflakeAdminUsername,
-		&row.SnowflakeAdminPassword,
 		&row.SnowflakeAccountDetails,
 		&row.AWSPantherDeploymentRoleDeployed,
 		&row.AWSReadinessBootstrapToolsDeployed,
@@ -156,7 +153,6 @@ func (d *DB) SaveState(row *Row) error {
 		INSERT INTO execution_state (
 			config_hash,
 			snowflake_admin_username,
-			snowflake_admin_password,
 			snowflake_account_details,
 			aws_panther_deployment_role_deployed,
 			aws_readiness_bootstrap_tools_deployed,
@@ -166,10 +162,9 @@ func (d *DB) SaveState(row *Row) error {
 			aws_snowflake_secret_arn,
 			aws_certificates_requested,
 			aws_certificates_results
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(config_hash) DO UPDATE SET
 			snowflake_admin_username = excluded.snowflake_admin_username,
-			snowflake_admin_password = excluded.snowflake_admin_password,
 			snowflake_account_details = excluded.snowflake_account_details,
 			aws_panther_deployment_role_deployed = excluded.aws_panther_deployment_role_deployed,
 			aws_readiness_bootstrap_tools_deployed = excluded.aws_readiness_bootstrap_tools_deployed,
@@ -184,7 +179,6 @@ func (d *DB) SaveState(row *Row) error {
 		query,
 		row.ConfigHash,
 		row.SnowflakeAdminUsername,
-		row.SnowflakeAdminPassword,
 		row.SnowflakeAccountDetails,
 		row.AWSPantherDeploymentRoleDeployed,
 		row.AWSReadinessBootstrapToolsDeployed,

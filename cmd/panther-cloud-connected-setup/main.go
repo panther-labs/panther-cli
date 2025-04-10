@@ -57,7 +57,6 @@ func main() {
 		}
 		if err := stateManager.UpdateSnowflakeState(
 			cfg.NewAccountConfig.AdminUsername,
-			cfg.NewAccountConfig.AdminPassword,
 			createAcctRes,
 		); err != nil {
 			log.Fatalf("failed to update Snowflake state: %v\n", err)

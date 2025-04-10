@@ -117,7 +117,6 @@ func (r *ReadinessCheckResults) Scan(value interface{}) error {
 type Row struct {
 	ConfigHash                         string `validate:"sha256"`
 	SnowflakeAdminUsername             string
-	SnowflakeAdminPassword             string
 	SnowflakeAdminRSAKey               string
 	SnowflakeAccountDetails            SnowflakeAccountDetails
 	AWSPantherDeploymentRoleDeployed   bool
