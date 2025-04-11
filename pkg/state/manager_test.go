@@ -25,7 +25,7 @@ func TestNewManager(t *testing.T) {
 	}()
 
 	// Create a simple test config
-	cfg := config.Config{
+	cfg := &config.Config{
 		AWSConfig: config.AWSConfig{
 			AccessKeyID:     "test-access-key",
 			SecretAccessKey: "test-secret-key",
@@ -113,7 +113,7 @@ func TestStateUpdates(t *testing.T) {
 	}()
 
 	// Create a simple test config
-	cfg := config.Config{
+	cfg := &config.Config{
 		AWSConfig: config.AWSConfig{
 			AccessKeyID:     "test-access-key",
 			SecretAccessKey: "test-secret-key",
@@ -339,7 +339,7 @@ func TestSnowflakeState(t *testing.T) {
 	}()
 
 	// Create a simple test config
-	cfg := config.Config{
+	cfg := &config.Config{
 		AWSConfig: config.AWSConfig{
 			AccessKeyID:     "test-access-key",
 			SecretAccessKey: "test-secret-key",

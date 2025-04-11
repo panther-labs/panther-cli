@@ -2,6 +2,7 @@ package config
 
 import (
 	"regexp"
+	"slices"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/panther-labs/panther-cli/pkg/util"
@@ -21,7 +22,11 @@ func init() {
 		"couldn't register validPantherRegion validation",
 	)
 
-	validate.RegisterStructValidation(validateEditionsMatch, NewAccountConfig{})
+	util.Must(validate.RegisterValidation("validSnowflakeRegion", validateSnowflakeRegion),
+		"couldn't register validSnowflakeRegion validation",
+	)
+
+	validate.RegisterStructValidation(validateEditionsMatch, Config{})
 }
 
 func validateSnowflakeAccountName(fl validator.FieldLevel) bool {
@@ -35,10 +40,11 @@ func validateAdminName(fl validator.FieldLevel) bool {
 }
 
 func validateEditionsMatch(sl validator.StructLevel) {
-	cfg := sl.Current().Interface().(NewAccountConfig)
-	if cfg.PantherEdition == "ENTERPRISE" && cfg.SnowflakeEdition != "ENTERPRISE" {
+	cfg := sl.Current().Interface().(Config)
+	if cfg.PantherAccountConfig.Edition == "ENTERPRISE" &&
+		(cfg.SnowflakeConfig.NewAccountConfig.Edition != "ENTERPRISE" || cfg.SnowflakeConfig.ExistingAccountConfig.Edition != "ENTERPRISE") {
 		sl.ReportError(
-			cfg.SnowflakeEdition,
+			cfg.SnowflakeConfig.NewAccountConfig.Edition,
 			"SnowflakeEdition",
 			"SnowflakeEdition",
 			"eqfield",
@@ -67,10 +73,25 @@ func validatePantherRegion(fl validator.FieldLevel) bool {
 		"us-west-2",
 	}
 
-	for _, region := range validRegions {
-		if fl.Field().String() == region {
-			return true
-		}
+	return slices.Contains(validRegions, fl.Field().String())
+}
+
+func validateSnowflakeRegion(fl validator.FieldLevel) bool {
+	validRegions := []string{
+		"aws_ap_northeast_1",
+		"aws_ap_northeast_2",
+		"aws_ap_south_1",
+		"aws_ap_southeast_1",
+		"aws_ap_southeast_2",
+		"aws_ca_central_1",
+		"aws_eu_central_1",
+		"aws_eu_west_1",
+		"aws_eu_west_2",
+		"aws_eu_west_3",
+		"aws_us_east_1",
+		"aws_us_east_2",
+		"aws_us_west_2",
 	}
-	return false
+
+	return slices.Contains(validRegions, fl.Field().String())
 }

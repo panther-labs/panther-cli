@@ -56,7 +56,7 @@ func main() {
 			log.Fatalf("failed to setup Snowflake: %v\n", err)
 		}
 		if err := stateManager.UpdateSnowflakeState(
-			cfg.NewAccountConfig.AdminUsername,
+			cfg.SnowflakeConfig.NewAccountConfig.AdminUsername,
 			createAcctRes,
 		); err != nil {
 			log.Fatalf("failed to update Snowflake state: %v\n", err)
@@ -135,7 +135,7 @@ func main() {
 
 // writeJSONSupportFile generates a JSON support file using the provided state and config
 // It returns the JSON string for possible further use
-func writeJSONSupportFile(currentState *state.Row, cfg config.Config) (string, error) {
+func writeJSONSupportFile(currentState *state.Row, cfg *config.Config) (string, error) {
 	// Generate JSON content
 	jsonStr, err := currentState.FormatJSON(cfg)
 	if err != nil {
@@ -225,7 +225,7 @@ func showLastRun(configFile string) {
 	util.LogDebugln(jsonStr)
 }
 
-func setupCertificates(ctx context.Context, cfg config.Config, stateManager *state.Manager) error {
+func setupCertificates(ctx context.Context, cfg *config.Config, stateManager *state.Manager) error {
 	certHelper, err := aws.NewCertificateRegistrationHelper(ctx, cfg)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize certificate registration helper")
@@ -257,7 +257,7 @@ func setupCertificates(ctx context.Context, cfg config.Config, stateManager *sta
 	return nil
 }
 
-func checkCertificateStatus(ctx context.Context, cfg config.Config, stateManager *state.Manager) error {
+func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManager *state.Manager) error {
 	certHelper, err := aws.NewCertificateRegistrationHelper(ctx, cfg)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize certificate registration helper")
@@ -354,10 +354,10 @@ func printDNSValidationInstructions(certs state.CertificateResults) {
 
 // Uses orgadmin (provided with RSA key) to create a new account whose first admin user is
 // PANTHERACCOUNTADMIN with a newly generated RSA key.
-func setupSnowflakeAccount(ctx context.Context, cfg config.Config) (snowflake.CreateAccountResult, error) {
+func setupSnowflakeAccount(ctx context.Context, cfg *config.Config) (snowflake.CreateAccountResult, error) {
 	snow := snowflake.AccountCreate{}
 
-	if err := snow.Connect(ctx, cfg.SnowflakeOrgConfig); err != nil {
+	if err := snow.Connect(ctx, cfg.SnowflakeConfig.NewAccountConfig.OrgConfig); err != nil {
 		return snowflake.CreateAccountResult{}, errors.Wrap(err, "failed to connect to Snowflake")
 	}
 	defer func() {
@@ -366,7 +366,7 @@ func setupSnowflakeAccount(ctx context.Context, cfg config.Config) (snowflake.Cr
 		}
 	}()
 
-	createAcctRes, err := snow.CreateNewSnowflakeAccount(cfg.NewAccountConfig)
+	createAcctRes, err := snow.CreateNewSnowflakeAccount(cfg.SnowflakeConfig.NewAccountConfig)
 	if err != nil {
 		return snowflake.CreateAccountResult{}, errors.Wrap(err, "failed to create new Snowflake account")
 	}
@@ -378,7 +378,7 @@ func setupSnowflakeAccount(ctx context.Context, cfg config.Config) (snowflake.Cr
 func snowflakeAdminUserSetup(
 	ctx context.Context,
 	createAcctRes snowflake.CreateAccountResult,
-	cfg config.Config,
+	cfg *config.Config,
 ) error {
 	snowAcctSetup := snowflake.AccountSetup{}
 	if err := snowAcctSetup.Connect(ctx, createAcctRes); err != nil {
@@ -390,13 +390,13 @@ func snowflakeAdminUserSetup(
 		}
 	}()
 
-	if err := snowAcctSetup.SetupCustomerAccountAdminUser(cfg.NewAccountConfig); err != nil {
+	if err := snowAcctSetup.SetupCustomerAccountAdminUser(cfg.SnowflakeConfig.NewAccountConfig); err != nil {
 		return errors.Wrap(err, "failed to setup Panther account admin user")
 	}
 	return nil
 }
 
-func setupAWS(ctx context.Context, cfg config.Config) error {
+func setupAWS(ctx context.Context, cfg *config.Config) error {
 	awsSetup, err := aws.NewCloudFormation(ctx, cfg.AWSConfig)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize AWS CloudFormation")
@@ -421,7 +421,7 @@ func setupAWS(ctx context.Context, cfg config.Config) error {
 	return nil
 }
 
-func runReadinessCheck(ctx context.Context, cfg config.Config) (state.ReadinessCheckResults, error) {
+func runReadinessCheck(ctx context.Context, cfg *config.Config) (state.ReadinessCheckResults, error) {
 	readinessCheck, err := panther.NewReadinessCheck(ctx, cfg.AWSConfig)
 	if err != nil {
 		return state.ReadinessCheckResults{}, errors.Wrap(err, "failed to initialize readiness check")
@@ -454,7 +454,7 @@ func runReadinessCheck(ctx context.Context, cfg config.Config) (state.ReadinessC
 
 func runSnowflakeCredentialBootstrap(
 	ctx context.Context,
-	cfg config.Config,
+	cfg *config.Config,
 	createAcctRes snowflake.CreateAccountResult,
 ) (string, error) {
 	bootstrap, err := aws.NewLocalSnowflakeCredentialBootstrap(ctx, cfg.AWSConfig)

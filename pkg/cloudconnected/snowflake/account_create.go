@@ -74,7 +74,7 @@ func (a *AccountCreate) mustSwitchToOrgAdminRole() {
 }
 
 // New accounts are created with PANTHERACCOUNTADMIN and a newly generated RSA key
-func (a *AccountCreate) CreateNewSnowflakeAccount(cfg config.NewAccountConfig) (CreateAccountResult, error) {
+func (a *AccountCreate) CreateNewSnowflakeAccount(cfg config.NewSnowflakeAccountConfig) (CreateAccountResult, error) {
 	if !a.isConnected() {
 		return CreateAccountResult{}, errors.New("not connected to Snowflake")
 	}
@@ -106,9 +106,9 @@ CREATE ACCOUNT %s
 
 	row := a.sql.QueryRowContext(
 		a.ctx,
-		fmt.Sprintf(query, cfg.SnowflakeAccountName), // we cannot parameterize the account name
+		fmt.Sprintf(query, cfg.AccountName), // we cannot parameterize the account name
 		pubkey,
-		cfg.SnowflakeEdition,
+		cfg.Edition,
 		cfg.GetSnowflakeRegion(),
 	)
 

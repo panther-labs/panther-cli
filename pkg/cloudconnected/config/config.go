@@ -11,21 +11,21 @@ import (
 )
 
 type Config struct {
-	SnowflakeOrgConfig SnowflakeOrgConfig `yaml:"SnowflakeOrgConfig" validate:"required"`
-	NewAccountConfig   NewAccountConfig   `yaml:"NewAccountConfig"   validate:"required"`
-	AWSConfig          AWSConfig          `yaml:"AWSConfig"          validate:"required"`
+	AWSConfig            AWSConfig            `yaml:"AWSConfig"            validate:"required"`
+	SnowflakeConfig      SnowflakeConfig      `yaml:"SnowflakeConfig"      validate:"required"`
+	PantherAccountConfig PantherAccountConfig `yaml:"PantherAccountConfig" validate:"required"`
 }
 
 func (c Config) validate() error {
 	return validate.Struct(c)
 }
 
-func NewConfigFromPath(path string) (Config, error) {
-	var cfg Config
+func NewConfigFromPath(path string) (*Config, error) {
+	cfg := &Config{}
 
 	file, err := os.Open(path)
 	if err != nil {
-		return cfg, err
+		return nil, err
 	}
 	defer func() {
 		if err := file.Close(); err != nil {
@@ -35,25 +35,58 @@ func NewConfigFromPath(path string) (Config, error) {
 
 	decoder := yaml.NewDecoder(file)
 	if err := decoder.Decode(&cfg); err != nil {
-		return cfg, err
+		return nil, err
 	}
 
 	// initialize defaults within the config, this is recursive
-	defaults.SetDefaults(&cfg)
+	defaults.SetDefaults(cfg)
 
 	// We need the region, but the customer doesn't need to provide it twice. It
 	// should always match up between the two configs.
-	cfg.AWSConfig.Region = cfg.NewAccountConfig.PantherRegion
-
-	// Read the OrgAdminPrivateKey from file
-	if cfg.SnowflakeOrgConfig.OrgAdminPrivateKeyPath != "" {
-		privateKey, err := os.ReadFile(cfg.SnowflakeOrgConfig.OrgAdminPrivateKeyPath)
-		if err != nil {
-			return cfg, err
-		}
-		cfg.SnowflakeOrgConfig.OrgAdminPrivateKey = string(privateKey)
+	if err := setupAWSConfig(cfg); err != nil {
+		return nil, err
 	}
 
+	if err := setupSnowflakeConfig(cfg); err != nil {
+		return nil, err
+	}
+
+	if err := validateConfig(cfg); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
+}
+
+func setupAWSConfig(cfg *Config) (err error) {
+	cfg.AWSConfig.Region = cfg.PantherAccountConfig.Region
+	return nil
+}
+
+func setupSnowflakeConfig(cfg *Config) (err error) {
+	// Set the type of SnowflakeConfig we are using
+	if cfg.SnowflakeConfig.NewAccountConfig.IsEmpty() {
+		cfg.SnowflakeConfig.ConfigType = SnowflakeConfigTypeNewAccount
+
+		// Set the region for the NewAccountConfig based on the chosen Panther region.
+		cfg.SnowflakeConfig.NewAccountConfig.Region = cfg.AWSConfig.Region
+	} else if cfg.SnowflakeConfig.ExistingAccountConfig.IsEmpty() {
+		cfg.SnowflakeConfig.ConfigType = SnowflakeConfigTypeExistingAccount
+	}
+
+	// Read the OrgAdminPrivateKey from file if this is a NewAccountConfig
+	if cfg.SnowflakeConfig.NewAccountConfig.OrgConfig.OrgAdminPrivateKeyPath != "" {
+		privateKey, err := os.ReadFile(cfg.SnowflakeConfig.NewAccountConfig.OrgConfig.OrgAdminPrivateKeyPath)
+		if err != nil {
+			return err
+		}
+		cfg.SnowflakeConfig.NewAccountConfig.OrgConfig.OrgAdminPrivateKey = string(privateKey)
+	}
+
+	return nil
+}
+
+func validateConfig(cfg *Config) (err error) {
 	if err := cfg.validate(); err != nil {
 		var validationErrs validator.ValidationErrors
 		if errors.As(err, &validationErrs) {
@@ -61,8 +94,8 @@ func NewConfigFromPath(path string) (Config, error) {
 				log.Printf("Config field '%s' failed validation: %s\n", err.Field(), err.ActualTag())
 			}
 		}
-		return cfg, err
+		return err
 	}
 
-	return cfg, nil
+	return nil
 }

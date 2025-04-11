@@ -106,7 +106,7 @@ func (a *AccountSetup) mustSwitchToSecurityAdminRole() {
 	}
 }
 
-func (a *AccountSetup) SetupCustomerAccountAdminUser(cfg config.NewAccountConfig) error {
+func (a *AccountSetup) SetupCustomerAccountAdminUser(cfg config.NewSnowflakeAccountConfig) error {
 	if !a.isConnected() {
 		return errors.New("not connected to Snowflake")
 	}

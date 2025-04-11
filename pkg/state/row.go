@@ -155,7 +155,7 @@ type OutputDetails struct {
 
 // PrettyPrint outputs a human-readable format of the state to the standard logger
 // It requires a config.Config to access some information.
-func (r *Row) PrettyPrint(cfg config.Config) {
+func (r *Row) PrettyPrint(cfg *config.Config) {
 	// Get structured output data
 	output := r.createStructuredOutput(cfg)
 
@@ -225,7 +225,7 @@ func (r *Row) PrettyPrint(cfg config.Config) {
 
 // FormatJSON returns a formatted JSON string representation of the row.
 // It requires a config.Config to generate the output.
-func (r *Row) FormatJSON(cfg config.Config) (string, error) {
+func (r *Row) FormatJSON(cfg *config.Config) (string, error) {
 	// Create structured output
 	output := r.createStructuredOutput(cfg)
 
@@ -239,22 +239,22 @@ func (r *Row) FormatJSON(cfg config.Config) (string, error) {
 }
 
 // createStructuredOutput creates a structured output object with relevant information
-func (r *Row) createStructuredOutput(cfg config.Config) OutputDetails {
+func (r *Row) createStructuredOutput(cfg *config.Config) OutputDetails {
 	// Initialize the output structure
 	output := OutputDetails{
-		AWSAccountID:              cfg.AWSConfig.MustGetAWSAccountID(),
-		PantherSubdomain:          cfg.AWSConfig.DomainCertificateConfiguration.PantherSubdomain,
-		DesiredPantherAccountName: cfg.NewAccountConfig.DesiredPantherAccountName,
-		AdminUserFirstName:        cfg.NewAccountConfig.AdminUserFirstName,
-		AdminUserLastName:         cfg.NewAccountConfig.AdminUserLastName,
-		AdminUsername:             cfg.NewAccountConfig.AdminUsername,
-		AdminEmail:                cfg.NewAccountConfig.AdminEmail,
-		IpAddressAllowList:        cfg.NewAccountConfig.IpAddressAllowList,
-		SnowflakeRegion:           cfg.NewAccountConfig.GetSnowflakeRegion(),
-		SnowflakeEdition:          cfg.NewAccountConfig.SnowflakeEdition,
-		PantherEdition:            cfg.NewAccountConfig.PantherEdition,
-		PantherRegion:             cfg.NewAccountConfig.PantherRegion,
-		DeploymentStatus:          make(map[string]interface{}),
+		// AWSAccountID:              cfg.AWSConfig.MustGetAWSAccountID(),
+		// PantherSubdomain:          cfg.AWSConfig.DomainCertificateConfiguration.PantherSubdomain,
+		// DesiredPantherAccountName: cfg.PantherAccountConfig.DesiredPantherAccountName.DesiredPantherAccountName,
+		// AdminUserFirstName:        cfg.NewAccountConfig.AdminUserFirstName,
+		// AdminUserLastName:         cfg.NewAccountConfig.AdminUserLastName,
+		// AdminUsername:             cfg.NewAccountConfig.AdminUsername,
+		// AdminEmail:                cfg.NewAccountConfig.AdminEmail,
+		// IpAddressAllowList:        cfg.NewAccountConfig.IpAddressAllowList,
+		// SnowflakeRegion:           cfg.NewAccountConfig.GetSnowflakeRegion(),
+		// SnowflakeEdition:          cfg.NewAccountConfig.SnowflakeEdition,
+		// PantherEdition:            cfg.NewAccountConfig.PantherEdition,
+		// PantherRegion:             cfg.NewAccountConfig.PantherRegion,
+		// DeploymentStatus:          make(map[string]interface{}),
 	}
 
 	// Add certificate ARNs if available

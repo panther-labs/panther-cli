@@ -20,7 +20,7 @@ type Manager struct {
 }
 
 // NewManager creates a new state manager for a given config
-func NewManager(cfg config.Config) (*Manager, error) {
+func NewManager(cfg *config.Config) (*Manager, error) {
 	// Calculate config hash
 	cfgBytes, err := json.Marshal(cfg)
 	if err != nil {

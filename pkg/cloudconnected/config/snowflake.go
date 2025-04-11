@@ -4,18 +4,26 @@ import (
 	"strings"
 )
 
+type SnowflakeConfigType int
+
+const (
+	SnowflakeConfigTypeNewAccount SnowflakeConfigType = iota
+	SnowflakeConfigTypeExistingAccount
+)
+
 //nolint:lll
 type SnowflakeConfig struct {
-	OrgConfig             SnowflakeOrgConfig             `yaml:"OrgConfig"             validate:"required_without=ExistingAccountConfigg"`
-	ExistingAccountConfig ExistingSnowflakeAccountConfig `yaml:"ExistingAccountConfig" validate:"required_without=OrgConfig"`
+	ConfigType            SnowflakeConfigType            `yaml:"-"                     validate:"required,oneof=NewAccountConfig ExistingAccountConfig"`
+	NewAccountConfig      NewSnowflakeAccountConfig      `yaml:"NewAccountConfig"      validate:"required_without=ExistingAccountConfig"`
+	ExistingAccountConfig ExistingSnowflakeAccountConfig `yaml:"ExistingAccountConfig" validate:"required_without=NewAccountConfig"`
 }
 
 //nolint:lll
 type SnowflakeOrgConfig struct {
 	AccountLocator         string `yaml:"AccountLocator"         validate:"required"`
-	AccountRegion          string `yaml:"AccountRegion"          validate:"required,validPantherRegion"`
+	AccountRegion          string `yaml:"AccountRegion"          validate:"required,lowercase,validPantherRegion"`
 	OrgAdminUsername       string `yaml:"OrgAdminUsername"       validate:"required"`
-	OrgAdminPrivateKey     string `yaml:"-"` // This will be populated from the file
+	OrgAdminPrivateKey     string `yaml:"-"                      validate:"required"                              json:"-"` // This will be populated from the file
 	OrgAdminPrivateKeyPath string `yaml:"OrgAdminPrivateKeyPath" validate:"required"`
 }
 
@@ -24,12 +32,24 @@ type ExistingSnowflakeAccountConfig struct {
 	AccountLocatorURL             string `yaml:"AccountLocatorURL"             validate:"required,url"`
 	URL                           string `yaml:"Url"                           validate:"required,url"`
 	Edition                       string `yaml:"Edition"                       validate:"required,oneof=STANDARD ENTERPRISE BUSINESS_CRITICAL"`
-	Region                        string `yaml:"SnowflakeRegion"               validate:"required,validateSnowflakeRegion"`
+	Region                        string `yaml:"SnowflakeRegion"               validate:"required,lowercase,validateSnowflakeRegion"`
 	PantherAccountAdminRSAKeyPath string `yaml:"PantherAccountAdminRSAKeyPath" validate:"required"`
+}
+
+func (c ExistingSnowflakeAccountConfig) IsEmpty() bool {
+	return c == ExistingSnowflakeAccountConfig{}
+}
+
+func (c ExistingSnowflakeAccountConfig) GetAWSRegion() string {
+	region := strings.ReplaceAll(c.Region, "_", "-")
+	region = strings.TrimLeft(region, "aws_")
+	return c.Region
 }
 
 //nolint:lll
 type NewSnowflakeAccountConfig struct {
+	OrgConfig SnowflakeOrgConfig `yaml:"OrgConfig" validate:"required"`
+
 	AccountName        string `yaml:"SnowflakeAccountName" validate:"required,validAcctName"`
 	Edition            string `yaml:"SnowflakeEdition"     validate:"required,oneof=STANDARD ENTERPRISE BUSINESS_CRITICAL"` // if PantherEdition!=Enterprise, SnowflakeEdition can be whatever
 	AdminUsername      string `yaml:"AdminUsername"        validate:"required,validAdminName"`
@@ -37,34 +57,14 @@ type NewSnowflakeAccountConfig struct {
 	AdminEmail         string `yaml:"AdminEmail"           validate:"required,email"`
 	AdminUserFirstName string `yaml:"AdminUserFirstName"   validate:"required"`
 	AdminUserLastName  string `yaml:"AdminUserLastName"    validate:"required"`
+	Region             string `yaml:"-"                    validate:"required,lowercase,validPantherRegion"`
 }
 
-//nolint:lll
-type PantherAccountConfig struct {
-	DesiredPantherAccountName string   `yaml:"DesiredPantherAccountName" validate:"required"`
-	Edition                   string   `yaml:"PantherEdition"            validate:"required,oneof=ENTERPRISE ESSENTIALS"` // if PantherEdition==Enterprise, SnowflakeEdition must be Enterprise
-	Region                    string   `yaml:"PantherRegion"             validate:"required,validPantherRegion"`          // this informs which Snowflake region we use, currently AWS-only
-	IpAddressAllowList        []string `yaml:"IpAddressAllowList"        validate:"omitempty,dive,ip"`                    // Optional list of allowed IP addresses
+func (c NewSnowflakeAccountConfig) IsEmpty() bool {
+	return c == NewSnowflakeAccountConfig{}
 }
 
-//nolint:lll
-type NewAccountConfig struct {
-	SnowflakeAccountName string `yaml:"SnowflakeAccountName" validate:"required,validAcctName"`
-	SnowflakeEdition     string `yaml:"SnowflakeEdition"     validate:"required,oneof=STANDARD ENTERPRISE BUSINESS_CRITICAL"` // if PantherEdition!=Enterprise, SnowflakeEdition can be whatever
-
-	AdminUsername      string `yaml:"AdminUsername"      validate:"required,validAdminName"`
-	AdminPassword      string `yaml:"AdminPassword"      validate:"required,min=32"`
-	AdminEmail         string `yaml:"AdminEmail"         validate:"required,email"`
-	AdminUserFirstName string `yaml:"AdminUserFirstName" validate:"required"`
-	AdminUserLastName  string `yaml:"AdminUserLastName"  validate:"required"`
-
-	DesiredPantherAccountName string   `yaml:"DesiredPantherAccountName" validate:"required"`
-	PantherEdition            string   `yaml:"PantherEdition"            validate:"required,oneof=ENTERPRISE ESSENTIALS"` // if PantherEdition==Enterprise, SnowflakeEdition must be Enterprise
-	PantherRegion             string   `yaml:"PantherRegion"             validate:"required,validPantherRegion"`          // this informs which Snowflake region we use, currently AWS-only
-	IpAddressAllowList        []string `yaml:"IpAddressAllowList"        validate:"omitempty,dive,ip"`                    // Optional list of allowed IP addresses
-}
-
-func (n NewAccountConfig) GetSnowflakeRegion() string {
-	region := strings.ReplaceAll(n.PantherRegion, "-", "_")
+func (n NewSnowflakeAccountConfig) GetSnowflakeRegion() string {
+	region := strings.ReplaceAll(n.Region, "-", "_")
 	return "aws_" + region
 }
