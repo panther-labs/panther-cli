@@ -7,19 +7,19 @@ import (
 	"github.com/pkg/errors"
 )
 
-type CreateAccountResult struct {
+type ResolvedSnowflakeAcccount struct {
+	AccountName       string          `json:"accountName"       validate:"required"`
+	URL               string          `json:"url"               validate:"required,url"`
+	Edition           string          `json:"edition"           validate:"required"`
+	Region            string          `json:"region"            validate:"required"`
+	AdminRSAKey       *rsa.PrivateKey `json:"-"                 validate:"required"`
 	AccountLocator    string          `json:"accountLocator"`
 	AccountLocatorURL string          `json:"accountLocatorURL"`
-	AccountName       string          `json:"accountName"`
-	URL               string          `json:"url"`
-	Edition           string          `json:"edition"`
 	RegionGroup       string          `json:"regionGroup"`
 	Cloud             string          `json:"cloud"`
-	Region            string          `json:"region"`
-	AdminRSAKey       *rsa.PrivateKey `json:"-"`
 }
 
-func (c CreateAccountResult) GetAWSRegion() string {
+func (c ResolvedSnowflakeAcccount) GetAWSRegion() string {
 	lowered := strings.ToLower(c.Region)
 	stripped := strings.TrimPrefix(lowered, "aws_")
 	toDashes := strings.ReplaceAll(stripped, "_", "-")
@@ -35,7 +35,7 @@ func (c CreateAccountResult) GetAWSRegion() string {
 // In this context, "fully qualified" means the first subdomain is in the format
 // "<org name>-<account name>". The AccountName returned by Snowflake is just
 // "<account name>".
-func (c CreateAccountResult) GetFullyQualifiedAccountName() (string, error) {
+func (c ResolvedSnowflakeAcccount) GetFullyQualifiedAccountName() (string, error) {
 	// Remove protocol prefix if present
 	urlParts := strings.Split(c.URL, "://")
 	hostPart := c.URL

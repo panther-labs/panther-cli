@@ -41,10 +41,25 @@ func validateAdminName(fl validator.FieldLevel) bool {
 
 func validateEditionsMatch(sl validator.StructLevel) {
 	cfg := sl.Current().Interface().(Config)
-	if cfg.PantherAccountConfig.Edition == "ENTERPRISE" &&
-		(cfg.SnowflakeConfig.NewAccountConfig.Edition != "ENTERPRISE" || cfg.SnowflakeConfig.ExistingAccountConfig.Edition != "ENTERPRISE") {
+
+	var specifiedEdition string
+	if cfg.SnowflakeConfig.NewAccountConfig != nil {
+		specifiedEdition = cfg.SnowflakeConfig.NewAccountConfig.Edition
+	} else if cfg.SnowflakeConfig.ExistingAccountConfig != nil {
+		specifiedEdition = cfg.SnowflakeConfig.ExistingAccountConfig.Edition
+	} else {
 		sl.ReportError(
-			cfg.SnowflakeConfig.NewAccountConfig.Edition,
+			cfg.PantherAccountConfig.Edition,
+			"PantherEdition",
+			"PantherEdition",
+			"eqfield",
+			"No Edition appears to have been specified",
+		)
+	}
+
+	if cfg.PantherAccountConfig.Edition == "ENTERPRISE" && specifiedEdition != "ENTERPRISE" {
+		sl.ReportError(
+			specifiedEdition,
 			"SnowflakeEdition",
 			"SnowflakeEdition",
 			"eqfield",

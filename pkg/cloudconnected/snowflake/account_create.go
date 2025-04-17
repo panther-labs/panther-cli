@@ -12,7 +12,6 @@ import (
 
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
 	"github.com/panther-labs/panther-cli/pkg/rsapem"
-	"github.com/panther-labs/panther-cli/pkg/util"
 )
 
 // Configuration for Snowflake connection is by using the
@@ -24,19 +23,11 @@ type AccountCreate struct {
 }
 
 func (a *AccountCreate) Connect(ctx context.Context, cfg config.SnowflakeOrgConfig) error {
-	tryEnableSnowflakeDebugLogging()
-
 	dsn := formatSnowflakeDSNFromSnowflakeOrgConfig(cfg)
-	util.LogDebugf("Connecting to Snowflake with DSN: %s", dsn)
 
-	db, err := sql.Open("snowflake", dsn)
+	db, err := openSnowflakeAccountConnection(ctx, dsn)
 	if err != nil {
-		return errors.Wrap(err, "failed to open connection")
-	}
-
-	// Test the connection to make sure it's actually valid.
-	if err := db.Ping(); err != nil {
-		return errors.Wrap(err, "failed to ping database")
+		return errors.Wrap(err, "failed to open Snowflake account connection")
 	}
 
 	a.sql = db
@@ -74,22 +65,24 @@ func (a *AccountCreate) mustSwitchToOrgAdminRole() {
 }
 
 // New accounts are created with PANTHERACCOUNTADMIN and a newly generated RSA key
-func (a *AccountCreate) CreateNewSnowflakeAccount(cfg config.NewSnowflakeAccountConfig) (CreateAccountResult, error) {
+func (a *AccountCreate) CreateNewSnowflakeAccount(
+	cfg *config.NewSnowflakeAccountConfig,
+) (*ResolvedSnowflakeAcccount, error) {
 	if !a.isConnected() {
-		return CreateAccountResult{}, errors.New("not connected to Snowflake")
+		return nil, errors.New("not connected to Snowflake")
 	}
 
 	a.mustSwitchToOrgAdminRole()
 
-	var createAcctRes CreateAccountResult
+	createAcctRes := &ResolvedSnowflakeAcccount{}
 
 	key, err := rsapem.GenerateKeyPair()
 	if err != nil {
-		return CreateAccountResult{}, errors.Wrap(err, "failed to generate PANTHERACCOUNTADMIN RSA key pair")
+		return nil, errors.Wrap(err, "failed to generate PANTHERACCOUNTADMIN RSA key pair")
 	}
 	pubkey, err := rsapem.EncodeRSAPEMPublicKey(key.PublicKey)
 	if err != nil {
-		return CreateAccountResult{}, errors.Wrap(err, "failed to encode PANTHERACCOUNTADMIN RSA public key")
+		return nil, errors.Wrap(err, "failed to encode PANTHERACCOUNTADMIN RSA public key")
 	}
 
 	const query = `

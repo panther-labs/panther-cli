@@ -1,21 +1,22 @@
 package config
 
 import (
+	"os"
 	"strings"
 )
 
-type SnowflakeConfigType int
+type SnowflakeConfigType string
 
 const (
-	SnowflakeConfigTypeNewAccount SnowflakeConfigType = iota
-	SnowflakeConfigTypeExistingAccount
+	SnowflakeConfigTypeNewAccount      SnowflakeConfigType = "SnowflakeConfigTypeNewAccount"
+	SnowflakeConfigTypeExistingAccount SnowflakeConfigType = "SnowflakeConfigTypeExistingAccount"
 )
 
 //nolint:lll
 type SnowflakeConfig struct {
-	ConfigType            SnowflakeConfigType            `yaml:"-"                     validate:"required,oneof=NewAccountConfig ExistingAccountConfig"`
-	NewAccountConfig      NewSnowflakeAccountConfig      `yaml:"NewAccountConfig"      validate:"required_without=ExistingAccountConfig"`
-	ExistingAccountConfig ExistingSnowflakeAccountConfig `yaml:"ExistingAccountConfig" validate:"required_without=NewAccountConfig"`
+	ConfigType            SnowflakeConfigType             `yaml:"-"                     validate:"required,oneof=SnowflakeConfigTypeNewAccount SnowflakeConfigTypeExistingAccount"`
+	NewAccountConfig      *NewSnowflakeAccountConfig      `yaml:"NewAccountConfig"      validate:"required_without=ExistingAccountConfig,excluded_with=ExistingAccountConfig"`
+	ExistingAccountConfig *ExistingSnowflakeAccountConfig `yaml:"ExistingAccountConfig" validate:"required_without=NewAccountConfig,excluded_with=NewAccountConfig"`
 }
 
 //nolint:lll
@@ -29,21 +30,28 @@ type SnowflakeOrgConfig struct {
 
 //nolint:lll
 type ExistingSnowflakeAccountConfig struct {
-	AccountLocatorURL             string `yaml:"AccountLocatorURL"             validate:"required,url"`
+	AccountName                   string `yaml:"AccountName"                   validate:"required"`
 	URL                           string `yaml:"Url"                           validate:"required,url"`
 	Edition                       string `yaml:"Edition"                       validate:"required,oneof=STANDARD ENTERPRISE BUSINESS_CRITICAL"`
-	Region                        string `yaml:"SnowflakeRegion"               validate:"required,lowercase,validateSnowflakeRegion"`
+	Region                        string `yaml:"SnowflakeRegion"               validate:"required,lowercase,validSnowflakeRegion"`
 	PantherAccountAdminRSAKeyPath string `yaml:"PantherAccountAdminRSAKeyPath" validate:"required"`
 }
 
-func (c ExistingSnowflakeAccountConfig) IsEmpty() bool {
-	return c == ExistingSnowflakeAccountConfig{}
+func (e ExistingSnowflakeAccountConfig) IsEmpty() bool {
+	return e == ExistingSnowflakeAccountConfig{}
 }
 
-func (c ExistingSnowflakeAccountConfig) GetAWSRegion() string {
-	region := strings.ReplaceAll(c.Region, "_", "-")
-	region = strings.TrimLeft(region, "aws_")
-	return c.Region
+func (e ExistingSnowflakeAccountConfig) GetAWSRegion() string {
+	region := strings.TrimLeft(e.Region, "aws_")
+	return strings.ReplaceAll(region, "_", "-")
+}
+
+func (e ExistingSnowflakeAccountConfig) LoadPantherAccountAdminRSAKey() (string, error) {
+	privateKey, err := os.ReadFile(e.PantherAccountAdminRSAKeyPath)
+	if err != nil {
+		return "", err
+	}
+	return string(privateKey), nil
 }
 
 //nolint:lll

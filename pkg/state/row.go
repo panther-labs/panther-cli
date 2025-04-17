@@ -17,11 +17,11 @@ import (
 
 // SnowflakeAccountDetails wraps snowflake.CreateAccountResult for JSON serialization
 type SnowflakeAccountDetails struct {
-	snowflake.CreateAccountResult
+	snowflake.ResolvedSnowflakeAcccount
 }
 
 type serializedSnowflakeAccountDetails struct {
-	snowflake.CreateAccountResult
+	snowflake.ResolvedSnowflakeAcccount
 	SerializedKey string
 }
 
@@ -33,8 +33,8 @@ func (s SnowflakeAccountDetails) Value() (driver.Value, error) {
 		return nil, errors.Wrap(err, "serializing AdminRSAKey in row Valuer")
 	}
 	return json.Marshal(serializedSnowflakeAccountDetails{
-		CreateAccountResult: s.CreateAccountResult,
-		SerializedKey:       serializedKey,
+		ResolvedSnowflakeAcccount: s.ResolvedSnowflakeAcccount,
+		SerializedKey:             serializedKey,
 	})
 }
 
@@ -50,7 +50,7 @@ func (s *SnowflakeAccountDetails) Scan(value interface{}) error {
 	if err != nil {
 		return errors.Wrap(err, "unmarshalling SnowflakeAccountDetails")
 	}
-	s.CreateAccountResult = x.CreateAccountResult
+	s.ResolvedSnowflakeAcccount = x.ResolvedSnowflakeAcccount
 	s.AdminRSAKey, err = rsapem.ParseRSAPEMPrivateKey(x.SerializedKey)
 	return err
 }

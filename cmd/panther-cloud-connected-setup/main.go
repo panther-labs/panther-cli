@@ -48,27 +48,25 @@ func main() {
 	currentState := stateManager.GetState()
 	util.LogDebugln(pp.Sprintln(currentState))
 
-	// Setup Snowflake if not already done
-	var createAcctRes snowflake.CreateAccountResult
+	var resolvedSnowflakeAccount *snowflake.ResolvedSnowflakeAcccount
 	if currentState.SnowflakeAccountDetails.AccountName == "" {
-		createAcctRes, err = setupSnowflakeAccount(ctx, cfg)
+		// Setup Snowflake if not already done
+		snowflakeSetup := snowflake.NewSnowflakeSetup(ctx, cfg)
+		resolvedSnowflakeAccount, err = snowflakeSetup.Run()
 		if err != nil {
 			log.Fatalf("failed to setup Snowflake: %v\n", err)
 		}
+
 		if err := stateManager.UpdateSnowflakeState(
 			cfg.SnowflakeConfig.NewAccountConfig.AdminUsername,
-			createAcctRes,
+			resolvedSnowflakeAccount,
 		); err != nil {
 			log.Fatalf("failed to update Snowflake state: %v\n", err)
 		}
+		log.Println("Successfully resolved Snowflake account")
 	} else {
-		createAcctRes = currentState.SnowflakeAccountDetails.CreateAccountResult
-		log.Println("Using existing Snowflake setup")
-	}
-	// idempotent, fine to run again if this is restarting from state
-	err = snowflakeAdminUserSetup(ctx, createAcctRes, cfg)
-	if err != nil {
-		log.Fatalf("failed to create Snowflake admin user: %v\n", err)
+		resolvedSnowflakeAccount = &currentState.SnowflakeAccountDetails.ResolvedSnowflakeAcccount
+		log.Println("Using existing Snowflake account details")
 	}
 
 	// Setup AWS if not already done
@@ -104,7 +102,7 @@ func main() {
 
 	// Run Snowflake credential bootstrap if not already done
 	if !currentState.AWSSnowflakeBootstrapSucceeded {
-		credsARN, err := runSnowflakeCredentialBootstrap(ctx, cfg, createAcctRes)
+		credsARN, err := runSnowflakeCredentialBootstrap(ctx, cfg, resolvedSnowflakeAccount)
 		if err != nil {
 			log.Fatalf("failed to run Snowflake credential bootstrap: %v\n", err)
 		}
@@ -352,50 +350,6 @@ func printDNSValidationInstructions(certs state.CertificateResults) {
 	}
 }
 
-// Uses orgadmin (provided with RSA key) to create a new account whose first admin user is
-// PANTHERACCOUNTADMIN with a newly generated RSA key.
-func setupSnowflakeAccount(ctx context.Context, cfg *config.Config) (snowflake.CreateAccountResult, error) {
-	snow := snowflake.AccountCreate{}
-
-	if err := snow.Connect(ctx, cfg.SnowflakeConfig.NewAccountConfig.OrgConfig); err != nil {
-		return snowflake.CreateAccountResult{}, errors.Wrap(err, "failed to connect to Snowflake")
-	}
-	defer func() {
-		if err := snow.Close(); err != nil {
-			log.Fatalf("failed to close Snowflake connection: %v\n", err)
-		}
-	}()
-
-	createAcctRes, err := snow.CreateNewSnowflakeAccount(cfg.SnowflakeConfig.NewAccountConfig)
-	if err != nil {
-		return snowflake.CreateAccountResult{}, errors.Wrap(err, "failed to create new Snowflake account")
-	}
-
-	return createAcctRes, nil
-}
-
-// Creates a type=person admin user for the customer based on the provided config.
-func snowflakeAdminUserSetup(
-	ctx context.Context,
-	createAcctRes snowflake.CreateAccountResult,
-	cfg *config.Config,
-) error {
-	snowAcctSetup := snowflake.AccountSetup{}
-	if err := snowAcctSetup.Connect(ctx, createAcctRes); err != nil {
-		return errors.Wrap(err, "failed to connect to new Snowflake account")
-	}
-	defer func() {
-		if err := snowAcctSetup.Close(); err != nil {
-			log.Fatalf("failed to close Snowflake account setup: %v\n", err)
-		}
-	}()
-
-	if err := snowAcctSetup.SetupCustomerAccountAdminUser(cfg.SnowflakeConfig.NewAccountConfig); err != nil {
-		return errors.Wrap(err, "failed to setup Panther account admin user")
-	}
-	return nil
-}
-
 func setupAWS(ctx context.Context, cfg *config.Config) error {
 	awsSetup, err := aws.NewCloudFormation(ctx, cfg.AWSConfig)
 	if err != nil {
@@ -455,14 +409,14 @@ func runReadinessCheck(ctx context.Context, cfg *config.Config) (state.Readiness
 func runSnowflakeCredentialBootstrap(
 	ctx context.Context,
 	cfg *config.Config,
-	createAcctRes snowflake.CreateAccountResult,
+	resolvedSnowflakeAcct *snowflake.ResolvedSnowflakeAcccount,
 ) (string, error) {
 	bootstrap, err := aws.NewLocalSnowflakeCredentialBootstrap(ctx, cfg.AWSConfig)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to initialize Snowflake credential bootstrap")
 	}
 
-	credsARN, err := bootstrap.WriteSecret(ctx, createAcctRes)
+	credsARN, err := bootstrap.WriteSecret(ctx, resolvedSnowflakeAcct)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to execute Snowflake credential bootstrap")
 	}

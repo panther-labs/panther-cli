@@ -37,7 +37,7 @@ func TestGetFullyQualifiedAccountName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := CreateAccountResult{URL: tt.url}
+			result := ResolvedSnowflakeAcccount{URL: tt.url}
 			got, _ := result.GetFullyQualifiedAccountName()
 			if got != tt.expected {
 				t.Errorf("GetFullyQualifiedAccountName() = %v, want %v", got, tt.expected)

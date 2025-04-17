@@ -2,7 +2,6 @@ package aws
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"log"
 	"time"
@@ -53,7 +52,7 @@ func NewLocalSnowflakeCredentialBootstrap(
 // WriteSecret writes the secret to AWS Secrets Manager as a JSON payload.
 func (l *LocalSnowflakeCredentialBootstrap) WriteSecret(
 	ctx context.Context,
-	createAccountResult snowflake.CreateAccountResult,
+	createAccountResult *snowflake.ResolvedSnowflakeAcccount,
 ) (string, error) {
 	err := updateSnowflakeSecret(ctx, l.secretsManager, snowflakeSecretName, createAccountResult)
 	if err != nil {
@@ -111,7 +110,7 @@ func (l *LocalSnowflakeCredentialBootstrap) ValidateSecret(ctx context.Context) 
 		asRsaPrivateKey,
 	)
 
-	db, err := sql.Open("snowflake", dsn)
+	db, err := snowflake.OpenSnowflakeAccountConnection(ctx, dsn)
 	if err != nil {
 		return errors.Wrapf(err, "failed to open connection to Snowflake host: '%s'", secret.Host)
 	}
@@ -135,7 +134,7 @@ func updateSnowflakeSecret(
 	ctx context.Context,
 	sm *secretsmanager.Client,
 	secretName string,
-	createAcctResult snowflake.CreateAccountResult,
+	createAcctResult *snowflake.ResolvedSnowflakeAcccount,
 ) error {
 	getSecretValueInput := &secretsmanager.GetSecretValueInput{
 		SecretId: aws.String(secretName),

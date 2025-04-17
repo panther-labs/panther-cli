@@ -362,7 +362,7 @@ func TestSnowflakeState(t *testing.T) {
 		require.NotNil(t, privateKey)
 
 		// Create mock Snowflake account result
-		accountDetails := snowflake.CreateAccountResult{
+		accountDetails := &snowflake.ResolvedSnowflakeAcccount{
 			AccountName: "PANTHER_TEST",
 			Region:      "us-west-2.aws",
 			URL:         "https://panther_test-account123.snowflakecomputing.com",
@@ -376,9 +376,9 @@ func TestSnowflakeState(t *testing.T) {
 		// Verify state
 		state := manager.GetState()
 		assert.Equal(t, "testuser", state.SnowflakeAdminUsername)
-		assert.Equal(t, accountDetails.AccountName, state.SnowflakeAccountDetails.CreateAccountResult.AccountName)
-		assert.Equal(t, accountDetails.Region, state.SnowflakeAccountDetails.CreateAccountResult.Region)
-		assert.Equal(t, accountDetails.URL, state.SnowflakeAccountDetails.CreateAccountResult.URL)
-		assert.NotNil(t, state.SnowflakeAccountDetails.CreateAccountResult.AdminRSAKey)
+		assert.Equal(t, accountDetails.AccountName, state.SnowflakeAccountDetails.ResolvedSnowflakeAcccount.AccountName)
+		assert.Equal(t, accountDetails.Region, state.SnowflakeAccountDetails.ResolvedSnowflakeAcccount.Region)
+		assert.Equal(t, accountDetails.URL, state.SnowflakeAccountDetails.ResolvedSnowflakeAcccount.URL)
+		assert.NotNil(t, state.SnowflakeAccountDetails.ResolvedSnowflakeAcccount.AdminRSAKey)
 	})
 }

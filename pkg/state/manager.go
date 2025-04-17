@@ -69,9 +69,9 @@ func (m *Manager) GetState() *Row {
 }
 
 // UpdateSnowflakeState updates the Snowflake-related state
-func (m *Manager) UpdateSnowflakeState(username string, accountDetails snowflake.CreateAccountResult) error {
+func (m *Manager) UpdateSnowflakeState(username string, accountDetails *snowflake.ResolvedSnowflakeAcccount) error {
 	m.state.SnowflakeAdminUsername = username
-	m.state.SnowflakeAccountDetails = SnowflakeAccountDetails{CreateAccountResult: accountDetails}
+	m.state.SnowflakeAccountDetails = SnowflakeAccountDetails{ResolvedSnowflakeAcccount: *accountDetails}
 	return m.SaveState()
 }
 

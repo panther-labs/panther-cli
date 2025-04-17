@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/k0kubun/pp/v3"
 	"github.com/mcuadros/go-defaults"
 	"gopkg.in/yaml.v3"
 )
@@ -51,6 +52,8 @@ func NewConfigFromPath(path string) (*Config, error) {
 		return nil, err
 	}
 
+	log.Printf("Config:\n%s", pp.Sprint(cfg))
+
 	if err := validateConfig(cfg); err != nil {
 		return nil, err
 	}
@@ -65,13 +68,15 @@ func setupAWSConfig(cfg *Config) (err error) {
 
 func setupSnowflakeConfig(cfg *Config) (err error) {
 	// Set the type of SnowflakeConfig we are using
-	if cfg.SnowflakeConfig.NewAccountConfig.IsEmpty() {
+	if !cfg.SnowflakeConfig.NewAccountConfig.IsEmpty() {
 		cfg.SnowflakeConfig.ConfigType = SnowflakeConfigTypeNewAccount
 
 		// Set the region for the NewAccountConfig based on the chosen Panther region.
-		cfg.SnowflakeConfig.NewAccountConfig.Region = cfg.AWSConfig.Region
-	} else if cfg.SnowflakeConfig.ExistingAccountConfig.IsEmpty() {
+		cfg.SnowflakeConfig.NewAccountConfig.Region = cfg.PantherAccountConfig.Region
+	} else if !cfg.SnowflakeConfig.ExistingAccountConfig.IsEmpty() {
 		cfg.SnowflakeConfig.ConfigType = SnowflakeConfigTypeExistingAccount
+	} else {
+		log.Fatalf("No SnowflakeConfig or invalid SnowflakeConfig provided:\n%s", pp.Sprint(cfg.SnowflakeConfig))
 	}
 
 	// Read the OrgAdminPrivateKey from file if this is a NewAccountConfig
