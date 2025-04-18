@@ -7,6 +7,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	PantherAccountAdminUserName = "PANTHERACCOUNTADMIN"
+)
+
 type ResolvedSnowflakeAcccount struct {
 	AccountName string          `json:"accountName" validate:"required"`
 	URL         string          `json:"url"         validate:"required,url"`

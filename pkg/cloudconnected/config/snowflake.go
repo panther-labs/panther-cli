@@ -1,8 +1,12 @@
 package config
 
 import (
+	"log"
 	"os"
 	"strings"
+
+	"github.com/k0kubun/pp/v3"
+	"github.com/pkg/errors"
 )
 
 type SnowflakeConfigType string
@@ -40,6 +44,7 @@ type ExistingSnowflakeAccountConfig struct {
 func (e *ExistingSnowflakeAccountConfig) LoadPantherAccountAdminRSAKey() (string, error) {
 	privateKey, err := os.ReadFile(e.PantherAccountAdminRSAKeyPath)
 	if err != nil {
+		log.Printf("failed to read PantherAccountAdminRSAKeyPath, error='%s', config section:\n%s", err, pp.Sprint(e))
 		return "", err
 	}
 	return string(privateKey), nil
@@ -48,6 +53,8 @@ func (e *ExistingSnowflakeAccountConfig) LoadPantherAccountAdminRSAKey() (string
 //nolint:lll
 type NewSnowflakeAccountConfig struct {
 	OrgConfig SnowflakeOrgConfig `yaml:"OrgConfig" validate:"required"`
+
+	PantherAccountAdminRSAKeyOutputPath string `yaml:"PantherAccountAdminRSAKeyOutputPath" validate:"required"`
 
 	AccountName        string `yaml:"SnowflakeAccountName" validate:"required,validAcctName"`
 	Edition            string `yaml:"SnowflakeEdition"     validate:"required,oneof=STANDARD ENTERPRISE BUSINESS_CRITICAL"` // if PantherEdition!=Enterprise, SnowflakeEdition can be whatever
@@ -62,4 +69,24 @@ type NewSnowflakeAccountConfig struct {
 func (n *NewSnowflakeAccountConfig) GetSnowflakeRegion() string {
 	region := strings.ReplaceAll(n.Region, "-", "_")
 	return "aws_" + region
+}
+
+func (n *NewSnowflakeAccountConfig) LoadPantherAccountAdminRSAKey() (string, error) {
+	if _, err := os.Stat(n.PantherAccountAdminRSAKeyOutputPath); os.IsNotExist(err) {
+		return "", errors.Errorf(
+			"It looks like you haven't created the new Snowflake account yet. The RSA keypair does not exist at location: %s",
+			n.PantherAccountAdminRSAKeyOutputPath,
+		)
+	}
+
+	privateKey, err := os.ReadFile(n.PantherAccountAdminRSAKeyOutputPath)
+	if err != nil {
+		log.Printf(
+			"failed to read PantherAccountAdminRSAKeyOutputPath, error='%s', config section:\n%s",
+			err,
+			pp.Sprint(n),
+		)
+		return "", err
+	}
+	return string(privateKey), nil
 }

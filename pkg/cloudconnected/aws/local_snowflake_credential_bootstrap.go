@@ -106,7 +106,7 @@ func (l *LocalSnowflakeCredentialBootstrap) ValidateSecret(ctx context.Context) 
 		"", // we don't need to specify region here
 		secret.Account,
 		secret.Username,
-		"ACCOUNTADMIN",
+		"ACCOUNTADMIN", // the snowflake role, not the user PANTHERACCOUNTADMIN
 		asRsaPrivateKey,
 	)
 
@@ -157,11 +157,11 @@ func updateSnowflakeSecret(
 
 	privateKey, err := rsapem.EncodeRSAPEMPrivateKey(createAcctResult.AdminRSAKey)
 	if err != nil {
-		return errors.Wrap(err, "encoding PrivateKey for PANTHERACCOUNTADMIN")
+		return errors.Wrapf(err, "encoding PrivateKey for %s", snowflake.PantherAccountAdminUserName)
 	}
 	publicKey, err := rsapem.EncodeRSAPEMPublicKey(&createAcctResult.AdminRSAKey.PublicKey)
 	if err != nil {
-		return errors.Wrap(err, "encoding PublicKey for PANTHERACCOUNTADMIN")
+		return errors.Wrapf(err, "encoding PublicKey for %s", snowflake.PantherAccountAdminUserName)
 	}
 	createTime := time.Now().UTC().Format(time.RFC3339)
 

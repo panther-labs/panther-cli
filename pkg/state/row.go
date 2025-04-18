@@ -182,7 +182,11 @@ func (r *Row) PrettyPrint(cfg *config.Config) {
 }
 
 func (r *Row) PopulateSnowflakeAccountDetails(accountDetails *snowflake.ResolvedSnowflakeAcccount) {
-	r.SnowflakeAccountName = accountDetails.AccountName
+	fullyQualifiedAccountName, err := accountDetails.GetFullyQualifiedAccountName()
+	if err != nil {
+		log.Printf("failed to get fully qualified account name, error='%s'", err)
+	}
+	r.SnowflakeAccountName = fullyQualifiedAccountName
 	r.SnowflakeAccountURL = accountDetails.URL
 	r.SnowflakeEdition = accountDetails.Edition
 	r.SnowflakeRegion = accountDetails.Region

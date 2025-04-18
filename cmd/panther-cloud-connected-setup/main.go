@@ -66,14 +66,26 @@ func main() {
 		log.Println("Using existing Snowflake account details")
 
 		resolvedSnowflakeAccount = currentState.RenderNonSensitiveSnowflakeAccountDetails()
-		privateKeyAsStr, err := cfg.SnowflakeConfig.ExistingAccountConfig.LoadPantherAccountAdminRSAKey()
-		if err != nil {
-			log.Fatalf("failed to load existing Snowflake account's PANTHERACCOUNTADMIN RSA key: %s\n", err.Error())
+
+		var privateKeyAsStr string
+		switch cfg.SnowflakeConfig.ConfigType {
+		case config.SnowflakeConfigTypeExistingAccount:
+			pk, err := cfg.SnowflakeConfig.ExistingAccountConfig.LoadPantherAccountAdminRSAKey()
+			if err != nil {
+				log.Fatalf("failed to load existing Snowflake account's %s RSA key: %s\n", snowflake.PantherAccountAdminUserName, err.Error())
+			}
+			privateKeyAsStr = pk
+		case config.SnowflakeConfigTypeNewAccount:
+			pk, err := cfg.SnowflakeConfig.NewAccountConfig.LoadPantherAccountAdminRSAKey()
+			if err != nil {
+				log.Fatalf("failed to generate new Snowflake account's %s RSA key: %s\n", snowflake.PantherAccountAdminUserName, err.Error())
+			}
+			privateKeyAsStr = pk
 		}
 
 		privateKey, err := rsapem.ParseRSAPEMPrivateKey(privateKeyAsStr)
 		if err != nil {
-			log.Fatalf("failed to parse existing Snowflake account's PANTHERACCOUNTADMIN RSA key: %s\n", err.Error())
+			log.Fatalf("failed to parse existing Snowflake account's %s RSA key: %s\n", snowflake.PantherAccountAdminUserName, err.Error())
 		}
 		resolvedSnowflakeAccount.AdminRSAKey = privateKey
 	}

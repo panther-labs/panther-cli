@@ -27,7 +27,7 @@ func (a *AccountSetup) Connect(ctx context.Context, newAcct *ResolvedSnowflakeAc
 	dsn := util.FormatSnowflakeDSNFromRSAKey(
 		newAcct.GetAWSRegion(),
 		newAcct.AccountLocator,
-		"PANTHERACCOUNTADMIN",
+		PantherAccountAdminUserName,
 		"ACCOUNTADMIN",
 		newAcct.AdminRSAKey,
 	)

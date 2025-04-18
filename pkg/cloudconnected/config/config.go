@@ -52,8 +52,6 @@ func NewConfigFromPath(path string) (*Config, error) {
 		return nil, err
 	}
 
-	log.Printf("Config:\n%s", pp.Sprint(cfg))
-
 	if err := validateConfig(cfg); err != nil {
 		return nil, err
 	}
