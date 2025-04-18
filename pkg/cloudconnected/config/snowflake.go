@@ -31,22 +31,13 @@ type SnowflakeOrgConfig struct {
 //nolint:lll
 type ExistingSnowflakeAccountConfig struct {
 	AccountName                   string `yaml:"AccountName"                   validate:"required"`
-	URL                           string `yaml:"Url"                           validate:"required,url"`
+	URL                           string `yaml:"URL"                           validate:"required,url"`
 	Edition                       string `yaml:"Edition"                       validate:"required,oneof=STANDARD ENTERPRISE BUSINESS_CRITICAL"`
-	Region                        string `yaml:"SnowflakeRegion"               validate:"required,lowercase,validSnowflakeRegion"`
+	Region                        string `yaml:"Region"                        validate:"required,lowercase,validPantherRegion"`
 	PantherAccountAdminRSAKeyPath string `yaml:"PantherAccountAdminRSAKeyPath" validate:"required"`
 }
 
-func (e ExistingSnowflakeAccountConfig) IsEmpty() bool {
-	return e == ExistingSnowflakeAccountConfig{}
-}
-
-func (e ExistingSnowflakeAccountConfig) GetAWSRegion() string {
-	region := strings.TrimLeft(e.Region, "aws_")
-	return strings.ReplaceAll(region, "_", "-")
-}
-
-func (e ExistingSnowflakeAccountConfig) LoadPantherAccountAdminRSAKey() (string, error) {
+func (e *ExistingSnowflakeAccountConfig) LoadPantherAccountAdminRSAKey() (string, error) {
 	privateKey, err := os.ReadFile(e.PantherAccountAdminRSAKeyPath)
 	if err != nil {
 		return "", err
@@ -62,17 +53,13 @@ type NewSnowflakeAccountConfig struct {
 	Edition            string `yaml:"SnowflakeEdition"     validate:"required,oneof=STANDARD ENTERPRISE BUSINESS_CRITICAL"` // if PantherEdition!=Enterprise, SnowflakeEdition can be whatever
 	AdminUsername      string `yaml:"AdminUsername"        validate:"required,validAdminName"`
 	AdminPassword      string `yaml:"AdminPassword"        validate:"required,min=32"`
-	AdminEmail         string `yaml:"AdminEmail"           validate:"required,email"`
-	AdminUserFirstName string `yaml:"AdminUserFirstName"   validate:"required"`
-	AdminUserLastName  string `yaml:"AdminUserLastName"    validate:"required"`
+	AdminEmail         string `yaml:"-"                    validate:"required,email"`
+	AdminUserFirstName string `yaml:"-"                    validate:"required"`
+	AdminUserLastName  string `yaml:"-"                    validate:"required"`
 	Region             string `yaml:"-"                    validate:"required,lowercase,validPantherRegion"`
 }
 
-func (c NewSnowflakeAccountConfig) IsEmpty() bool {
-	return c == NewSnowflakeAccountConfig{}
-}
-
-func (n NewSnowflakeAccountConfig) GetSnowflakeRegion() string {
+func (n *NewSnowflakeAccountConfig) GetSnowflakeRegion() string {
 	region := strings.ReplaceAll(n.Region, "-", "_")
 	return "aws_" + region
 }

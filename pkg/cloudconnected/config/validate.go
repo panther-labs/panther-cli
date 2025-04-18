@@ -21,11 +21,6 @@ func init() {
 	util.Must(validate.RegisterValidation("validPantherRegion", validatePantherRegion),
 		"couldn't register validPantherRegion validation",
 	)
-
-	util.Must(validate.RegisterValidation("validSnowflakeRegion", validateSnowflakeRegion),
-		"couldn't register validSnowflakeRegion validation",
-	)
-
 	validate.RegisterStructValidation(validateEditionsMatch, Config{})
 }
 
@@ -86,26 +81,6 @@ func validatePantherRegion(fl validator.FieldLevel) bool {
 		"us-east-1",
 		"us-east-2",
 		"us-west-2",
-	}
-
-	return slices.Contains(validRegions, fl.Field().String())
-}
-
-func validateSnowflakeRegion(fl validator.FieldLevel) bool {
-	validRegions := []string{
-		"aws_ap_northeast_1",
-		"aws_ap_northeast_2",
-		"aws_ap_south_1",
-		"aws_ap_southeast_1",
-		"aws_ap_southeast_2",
-		"aws_ca_central_1",
-		"aws_eu_central_1",
-		"aws_eu_west_1",
-		"aws_eu_west_2",
-		"aws_eu_west_3",
-		"aws_us_east_1",
-		"aws_us_east_2",
-		"aws_us_west_2",
 	}
 
 	return slices.Contains(validRegions, fl.Field().String())

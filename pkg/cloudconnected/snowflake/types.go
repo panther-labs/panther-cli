@@ -8,15 +8,17 @@ import (
 )
 
 type ResolvedSnowflakeAcccount struct {
-	AccountName       string          `json:"accountName"       validate:"required"`
-	URL               string          `json:"url"               validate:"required,url"`
-	Edition           string          `json:"edition"           validate:"required"`
-	Region            string          `json:"region"            validate:"required"`
-	AdminRSAKey       *rsa.PrivateKey `json:"-"                 validate:"required"`
-	AccountLocator    string          `json:"accountLocator"`
-	AccountLocatorURL string          `json:"accountLocatorURL"`
-	RegionGroup       string          `json:"regionGroup"`
-	Cloud             string          `json:"cloud"`
+	AccountName string          `json:"accountName" validate:"required"`
+	URL         string          `json:"url"         validate:"required,url"`
+	Edition     string          `json:"edition"     validate:"required"`
+	Region      string          `json:"region"      validate:"required"`
+	AdminRSAKey *rsa.PrivateKey `json:"-"           validate:"required"`
+
+	// optional fields
+	AccountLocator    string `json:"accountLocator"`
+	AccountLocatorURL string `json:"accountLocatorURL"`
+	RegionGroup       string `json:"regionGroup"`
+	Cloud             string `json:"cloud"`
 }
 
 func (c ResolvedSnowflakeAcccount) GetAWSRegion() string {

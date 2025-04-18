@@ -14,8 +14,10 @@ const (
 	createTableSQL = `
 	CREATE TABLE IF NOT EXISTS execution_state (
 		config_hash TEXT PRIMARY KEY,
-		snowflake_admin_username TEXT,
-		snowflake_account_details JSON,
+		snowflake_account_name TEXT,
+		snowflake_account_url TEXT,
+		snowflake_edition TEXT,
+		snowflake_region TEXT,
 		aws_panther_deployment_role_deployed BOOLEAN,
 		aws_readiness_bootstrap_tools_deployed BOOLEAN,
 		aws_readiness_check_succeeded BOOLEAN,
@@ -72,8 +74,10 @@ func (d *DB) GetState(configHash string) (*Row, error) {
 	query := `
 		SELECT
 			config_hash,
-			snowflake_admin_username,
-			snowflake_account_details,
+			snowflake_account_name,
+			snowflake_account_url,
+			snowflake_edition,
+			snowflake_region,
 			aws_panther_deployment_role_deployed,
 			aws_readiness_bootstrap_tools_deployed,
 			aws_readiness_check_succeeded,
@@ -88,8 +92,10 @@ func (d *DB) GetState(configHash string) (*Row, error) {
 	row := &Row{}
 	err := d.db.QueryRow(query, configHash).Scan(
 		&row.ConfigHash,
-		&row.SnowflakeAdminUsername,
-		&row.SnowflakeAccountDetails,
+		&row.SnowflakeAccountName,
+		&row.SnowflakeAccountURL,
+		&row.SnowflakeEdition,
+		&row.SnowflakeRegion,
 		&row.AWSPantherDeploymentRoleDeployed,
 		&row.AWSReadinessBootstrapToolsDeployed,
 		&row.AWSReadinessCheckSucceeded,
@@ -152,8 +158,10 @@ func (d *DB) SaveState(row *Row) error {
 	query := `
 		INSERT INTO execution_state (
 			config_hash,
-			snowflake_admin_username,
-			snowflake_account_details,
+			snowflake_account_name,
+			snowflake_account_url,
+			snowflake_edition,
+			snowflake_region,
 			aws_panther_deployment_role_deployed,
 			aws_readiness_bootstrap_tools_deployed,
 			aws_readiness_check_succeeded,
@@ -162,10 +170,11 @@ func (d *DB) SaveState(row *Row) error {
 			aws_snowflake_secret_arn,
 			aws_certificates_requested,
 			aws_certificates_results
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(config_hash) DO UPDATE SET
-			snowflake_admin_username = excluded.snowflake_admin_username,
-			snowflake_account_details = excluded.snowflake_account_details,
+			snowflake_account_name = excluded.snowflake_account_name,
+			snowflake_account_url = excluded.snowflake_account_url,
+			snowflake_edition = excluded.snowflake_edition,
 			aws_panther_deployment_role_deployed = excluded.aws_panther_deployment_role_deployed,
 			aws_readiness_bootstrap_tools_deployed = excluded.aws_readiness_bootstrap_tools_deployed,
 			aws_readiness_check_succeeded = excluded.aws_readiness_check_succeeded,
@@ -178,8 +187,10 @@ func (d *DB) SaveState(row *Row) error {
 	_, err := d.db.Exec(
 		query,
 		row.ConfigHash,
-		row.SnowflakeAdminUsername,
-		row.SnowflakeAccountDetails,
+		row.SnowflakeAccountName,
+		row.SnowflakeAccountURL,
+		row.SnowflakeEdition,
+		row.SnowflakeRegion,
 		row.AWSPantherDeploymentRoleDeployed,
 		row.AWSReadinessBootstrapToolsDeployed,
 		row.AWSReadinessCheckSucceeded,

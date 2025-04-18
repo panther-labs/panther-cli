@@ -370,15 +370,13 @@ func TestSnowflakeState(t *testing.T) {
 		}
 
 		// Update Snowflake state
-		err = manager.UpdateSnowflakeState("testuser", accountDetails)
+		err = manager.UpdateSnowflakeState(accountDetails)
 		require.NoError(t, err)
 
 		// Verify state
 		state := manager.GetState()
-		assert.Equal(t, "testuser", state.SnowflakeAdminUsername)
-		assert.Equal(t, accountDetails.AccountName, state.SnowflakeAccountDetails.ResolvedSnowflakeAcccount.AccountName)
-		assert.Equal(t, accountDetails.Region, state.SnowflakeAccountDetails.ResolvedSnowflakeAcccount.Region)
-		assert.Equal(t, accountDetails.URL, state.SnowflakeAccountDetails.ResolvedSnowflakeAcccount.URL)
-		assert.NotNil(t, state.SnowflakeAccountDetails.ResolvedSnowflakeAcccount.AdminRSAKey)
+		assert.Equal(t, accountDetails.AccountName, state.SnowflakeAccountName)
+		assert.Equal(t, accountDetails.Region, state.SnowflakeEdition)
+		assert.Equal(t, accountDetails.URL, state.SnowflakeAccountURL)
 	})
 }

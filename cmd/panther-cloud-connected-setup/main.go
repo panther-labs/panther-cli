@@ -11,6 +11,7 @@ import (
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/panther"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/snowflake"
+	"github.com/panther-labs/panther-cli/pkg/rsapem"
 	"github.com/panther-labs/panther-cli/pkg/state"
 	"github.com/panther-labs/panther-cli/pkg/util"
 	"github.com/pkg/errors"
@@ -49,7 +50,7 @@ func main() {
 	util.LogDebugln(pp.Sprintln(currentState))
 
 	var resolvedSnowflakeAccount *snowflake.ResolvedSnowflakeAcccount
-	if currentState.SnowflakeAccountDetails.AccountName == "" {
+	if currentState.SnowflakeAccountName == "" {
 		// Setup Snowflake if not already done
 		snowflakeSetup := snowflake.NewSnowflakeSetup(ctx, cfg)
 		resolvedSnowflakeAccount, err = snowflakeSetup.Run()
@@ -57,16 +58,24 @@ func main() {
 			log.Fatalf("failed to setup Snowflake: %v\n", err)
 		}
 
-		if err := stateManager.UpdateSnowflakeState(
-			cfg.SnowflakeConfig.NewAccountConfig.AdminUsername,
-			resolvedSnowflakeAccount,
-		); err != nil {
+		if err := stateManager.UpdateSnowflakeState(resolvedSnowflakeAccount); err != nil {
 			log.Fatalf("failed to update Snowflake state: %v\n", err)
 		}
 		log.Println("Successfully resolved Snowflake account")
 	} else {
-		resolvedSnowflakeAccount = &currentState.SnowflakeAccountDetails.ResolvedSnowflakeAcccount
 		log.Println("Using existing Snowflake account details")
+
+		resolvedSnowflakeAccount = currentState.RenderNonSensitiveSnowflakeAccountDetails()
+		privateKeyAsStr, err := cfg.SnowflakeConfig.ExistingAccountConfig.LoadPantherAccountAdminRSAKey()
+		if err != nil {
+			log.Fatalf("failed to load existing Snowflake account's PANTHERACCOUNTADMIN RSA key: %s\n", err.Error())
+		}
+
+		privateKey, err := rsapem.ParseRSAPEMPrivateKey(privateKeyAsStr)
+		if err != nil {
+			log.Fatalf("failed to parse existing Snowflake account's PANTHERACCOUNTADMIN RSA key: %s\n", err.Error())
+		}
+		resolvedSnowflakeAccount.AdminRSAKey = privateKey
 	}
 
 	// Setup AWS if not already done
@@ -143,10 +152,10 @@ func writeJSONSupportFile(currentState *state.Row, cfg *config.Config) (string, 
 	// Get components for filename
 	subdomain := cfg.AWSConfig.DomainCertificateConfiguration.PantherSubdomain
 	awsAccountID := cfg.AWSConfig.MustGetAWSAccountID()
-	snowflakeLocator := currentState.SnowflakeAccountDetails.AccountName
+	snowflakeAccountName := currentState.SnowflakeAccountName
 
 	// Construct filename
-	filename := fmt.Sprintf("%s-%s-%s-supportfile.json", subdomain, awsAccountID, snowflakeLocator)
+	filename := fmt.Sprintf("%s-%s-%s-supportfile.json", subdomain, awsAccountID, snowflakeAccountName)
 
 	// Check if file exists
 	if _, err := os.Stat(filename); err == nil {

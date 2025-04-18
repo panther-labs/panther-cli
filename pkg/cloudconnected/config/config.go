@@ -68,24 +68,34 @@ func setupAWSConfig(cfg *Config) (err error) {
 
 func setupSnowflakeConfig(cfg *Config) (err error) {
 	// Set the type of SnowflakeConfig we are using
-	if !cfg.SnowflakeConfig.NewAccountConfig.IsEmpty() {
+	if cfg.SnowflakeConfig.NewAccountConfig != nil {
 		cfg.SnowflakeConfig.ConfigType = SnowflakeConfigTypeNewAccount
 
 		// Set the region for the NewAccountConfig based on the chosen Panther region.
 		cfg.SnowflakeConfig.NewAccountConfig.Region = cfg.PantherAccountConfig.Region
-	} else if !cfg.SnowflakeConfig.ExistingAccountConfig.IsEmpty() {
+
+		log.Printf(
+			"Using Panther account config admin (email='%s', first name='%s', last name='%s') for new Snowflake account",
+			cfg.PantherAccountConfig.AdminEmail,
+			cfg.PantherAccountConfig.AdminUserFirstName,
+			cfg.PantherAccountConfig.AdminUserLastName,
+		)
+		cfg.SnowflakeConfig.NewAccountConfig.AdminEmail = cfg.PantherAccountConfig.AdminEmail
+		cfg.SnowflakeConfig.NewAccountConfig.AdminUserFirstName = cfg.PantherAccountConfig.AdminUserFirstName
+		cfg.SnowflakeConfig.NewAccountConfig.AdminUserLastName = cfg.PantherAccountConfig.AdminUserLastName
+
+		// Read the OrgAdminPrivateKey from file if this is a NewAccountConfig
+		if cfg.SnowflakeConfig.NewAccountConfig.OrgConfig.OrgAdminPrivateKeyPath != "" {
+			privateKey, err := os.ReadFile(cfg.SnowflakeConfig.NewAccountConfig.OrgConfig.OrgAdminPrivateKeyPath)
+			if err != nil {
+				return err
+			}
+			cfg.SnowflakeConfig.NewAccountConfig.OrgConfig.OrgAdminPrivateKey = string(privateKey)
+		}
+	} else if cfg.SnowflakeConfig.ExistingAccountConfig != nil {
 		cfg.SnowflakeConfig.ConfigType = SnowflakeConfigTypeExistingAccount
 	} else {
 		log.Fatalf("No SnowflakeConfig or invalid SnowflakeConfig provided:\n%s", pp.Sprint(cfg.SnowflakeConfig))
-	}
-
-	// Read the OrgAdminPrivateKey from file if this is a NewAccountConfig
-	if cfg.SnowflakeConfig.NewAccountConfig.OrgConfig.OrgAdminPrivateKeyPath != "" {
-		privateKey, err := os.ReadFile(cfg.SnowflakeConfig.NewAccountConfig.OrgConfig.OrgAdminPrivateKeyPath)
-		if err != nil {
-			return err
-		}
-		cfg.SnowflakeConfig.NewAccountConfig.OrgConfig.OrgAdminPrivateKey = string(privateKey)
 	}
 
 	return nil
