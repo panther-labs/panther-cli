@@ -363,7 +363,7 @@ func TestSnowflakeState(t *testing.T) {
 
 		// Create mock Snowflake account result
 		accountDetails := &snowflake.ResolvedSnowflakeAcccount{
-			AccountName: "PANTHER_TEST",
+			AccountName: "panther_test-account123",
 			Region:      "aws_us_west_2",
 			Edition:     "ENTERPRISE",
 			URL:         "https://panther_test-account123.snowflakecomputing.com",
