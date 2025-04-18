@@ -364,7 +364,7 @@ func TestSnowflakeState(t *testing.T) {
 		// Create mock Snowflake account result
 		accountDetails := &snowflake.ResolvedSnowflakeAcccount{
 			AccountName: "PANTHER_TEST",
-			Region:      "us-west-2.aws",
+			Region:      "aws_us_west_2",
 			URL:         "https://panther_test-account123.snowflakecomputing.com",
 			AdminRSAKey: privateKey,
 		}
@@ -376,7 +376,7 @@ func TestSnowflakeState(t *testing.T) {
 		// Verify state
 		state := manager.GetState()
 		assert.Equal(t, accountDetails.AccountName, state.SnowflakeAccountName)
-		assert.Equal(t, accountDetails.Region, state.SnowflakeEdition)
+		assert.Equal(t, accountDetails.Region, state.SnowflakeRegion)
 		assert.Equal(t, accountDetails.URL, state.SnowflakeAccountURL)
 	})
 }

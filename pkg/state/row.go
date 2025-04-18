@@ -185,6 +185,7 @@ func (r *Row) PopulateSnowflakeAccountDetails(accountDetails *snowflake.Resolved
 	r.SnowflakeAccountName = accountDetails.AccountName
 	r.SnowflakeAccountURL = accountDetails.URL
 	r.SnowflakeEdition = accountDetails.Edition
+	r.SnowflakeRegion = accountDetails.Region
 }
 
 func (r *Row) RenderNonSensitiveSnowflakeAccountDetails() *snowflake.ResolvedSnowflakeAcccount {
