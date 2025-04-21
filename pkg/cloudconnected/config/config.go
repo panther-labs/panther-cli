@@ -44,27 +44,24 @@ func NewConfigFromPath(path string) (*Config, error) {
 
 	// We need the region, but the customer doesn't need to provide it twice. It
 	// should always match up between the two configs.
-	if err := setupAWSConfig(cfg); err != nil {
+	cfg.setupAWSConfig()
+
+	if err := cfg.setupSnowflakeConfig(); err != nil {
 		return nil, err
 	}
 
-	if err := setupSnowflakeConfig(cfg); err != nil {
-		return nil, err
-	}
-
-	if err := validateConfig(cfg); err != nil {
+	if err := cfg.validateConfig(); err != nil {
 		return nil, err
 	}
 
 	return cfg, nil
 }
 
-func setupAWSConfig(cfg *Config) (err error) {
+func (cfg *Config) setupAWSConfig() {
 	cfg.AWSConfig.Region = cfg.PantherAccountConfig.Region
-	return nil
 }
 
-func setupSnowflakeConfig(cfg *Config) (err error) {
+func (cfg *Config) setupSnowflakeConfig() (err error) {
 	// Set the type of SnowflakeConfig we are using
 	if cfg.SnowflakeConfig.NewAccountConfig != nil {
 		cfg.SnowflakeConfig.ConfigType = SnowflakeConfigTypeNewAccount
@@ -99,7 +96,7 @@ func setupSnowflakeConfig(cfg *Config) (err error) {
 	return nil
 }
 
-func validateConfig(cfg *Config) (err error) {
+func (cfg *Config) validateConfig() (err error) {
 	if err := cfg.validate(); err != nil {
 		var validationErrs validator.ValidationErrors
 		if errors.As(err, &validationErrs) {
