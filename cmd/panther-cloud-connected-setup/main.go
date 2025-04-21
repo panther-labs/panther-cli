@@ -11,6 +11,7 @@ import (
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/panther"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/snowflake"
+	"github.com/panther-labs/panther-cli/pkg/rsapem"
 	"github.com/panther-labs/panther-cli/pkg/state"
 	"github.com/panther-labs/panther-cli/pkg/util"
 	"github.com/pkg/errors"
@@ -48,28 +49,45 @@ func main() {
 	currentState := stateManager.GetState()
 	util.LogDebugln(pp.Sprintln(currentState))
 
-	// Setup Snowflake if not already done
-	var createAcctRes snowflake.CreateAccountResult
-	if currentState.SnowflakeAccountDetails.AccountName == "" {
-		createAcctRes, err = setupSnowflakeAccount(ctx, cfg)
+	var resolvedSnowflakeAccount *snowflake.ResolvedSnowflakeAcccount
+	if currentState.SnowflakeAccountName == "" {
+		// Setup Snowflake if not already done
+		snowflakeSetup := snowflake.NewSnowflakeSetup(ctx, cfg)
+		resolvedSnowflakeAccount, err = snowflakeSetup.Run()
 		if err != nil {
 			log.Fatalf("failed to setup Snowflake: %v\n", err)
 		}
-		if err := stateManager.UpdateSnowflakeState(
-			cfg.NewAccountConfig.AdminUsername,
-			cfg.NewAccountConfig.AdminPassword,
-			createAcctRes,
-		); err != nil {
+
+		if err := stateManager.UpdateSnowflakeState(resolvedSnowflakeAccount); err != nil {
 			log.Fatalf("failed to update Snowflake state: %v\n", err)
 		}
+		log.Println("Successfully resolved Snowflake account")
 	} else {
-		createAcctRes = currentState.SnowflakeAccountDetails.CreateAccountResult
-		log.Println("Using existing Snowflake setup")
-	}
-	// idempotent, fine to run again if this is restarting from state
-	err = snowflakeAdminUserSetup(ctx, createAcctRes, cfg)
-	if err != nil {
-		log.Fatalf("failed to create Snowflake admin user: %v\n", err)
+		log.Println("Using existing Snowflake account details")
+
+		resolvedSnowflakeAccount = currentState.RenderNonSensitiveSnowflakeAccountDetails()
+
+		var privateKeyAsStr string
+		switch cfg.SnowflakeConfig.ConfigType {
+		case config.SnowflakeConfigTypeExistingAccount:
+			pk, err := cfg.SnowflakeConfig.ExistingAccountConfig.LoadPantherAccountAdminRSAKey()
+			if err != nil {
+				log.Fatalf("failed to load existing Snowflake account's %s RSA key: %s\n", snowflake.PantherAccountAdminUserName, err.Error())
+			}
+			privateKeyAsStr = pk
+		case config.SnowflakeConfigTypeNewAccount:
+			pk, err := cfg.SnowflakeConfig.NewAccountConfig.LoadPantherAccountAdminRSAKey()
+			if err != nil {
+				log.Fatalf("failed to generate new Snowflake account's %s RSA key: %s\n", snowflake.PantherAccountAdminUserName, err.Error())
+			}
+			privateKeyAsStr = pk
+		}
+
+		privateKey, err := rsapem.ParseRSAPEMPrivateKey(privateKeyAsStr)
+		if err != nil {
+			log.Fatalf("failed to parse existing Snowflake account's %s RSA key: %s\n", snowflake.PantherAccountAdminUserName, err.Error())
+		}
+		resolvedSnowflakeAccount.AdminRSAKey = privateKey
 	}
 
 	// Setup AWS if not already done
@@ -105,7 +123,7 @@ func main() {
 
 	// Run Snowflake credential bootstrap if not already done
 	if !currentState.AWSSnowflakeBootstrapSucceeded {
-		credsARN, err := runSnowflakeCredentialBootstrap(ctx, cfg, createAcctRes)
+		credsARN, err := runSnowflakeCredentialBootstrap(ctx, cfg, resolvedSnowflakeAccount)
 		if err != nil {
 			log.Fatalf("failed to run Snowflake credential bootstrap: %v\n", err)
 		}
@@ -136,7 +154,7 @@ func main() {
 
 // writeJSONSupportFile generates a JSON support file using the provided state and config
 // It returns the JSON string for possible further use
-func writeJSONSupportFile(currentState *state.Row, cfg config.Config) (string, error) {
+func writeJSONSupportFile(currentState *state.Row, cfg *config.Config) (string, error) {
 	// Generate JSON content
 	jsonStr, err := currentState.FormatJSON(cfg)
 	if err != nil {
@@ -146,10 +164,10 @@ func writeJSONSupportFile(currentState *state.Row, cfg config.Config) (string, e
 	// Get components for filename
 	subdomain := cfg.AWSConfig.DomainCertificateConfiguration.PantherSubdomain
 	awsAccountID := cfg.AWSConfig.MustGetAWSAccountID()
-	snowflakeLocator := currentState.SnowflakeAccountDetails.AccountName
+	snowflakeAccountName := currentState.SnowflakeAccountName
 
 	// Construct filename
-	filename := fmt.Sprintf("%s-%s-%s-supportfile.json", subdomain, awsAccountID, snowflakeLocator)
+	filename := fmt.Sprintf("%s-%s-%s-supportfile.json", subdomain, awsAccountID, snowflakeAccountName)
 
 	// Check if file exists
 	if _, err := os.Stat(filename); err == nil {
@@ -226,7 +244,7 @@ func showLastRun(configFile string) {
 	util.LogDebugln(jsonStr)
 }
 
-func setupCertificates(ctx context.Context, cfg config.Config, stateManager *state.Manager) error {
+func setupCertificates(ctx context.Context, cfg *config.Config, stateManager *state.Manager) error {
 	certHelper, err := aws.NewCertificateRegistrationHelper(ctx, cfg)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize certificate registration helper")
@@ -258,7 +276,7 @@ func setupCertificates(ctx context.Context, cfg config.Config, stateManager *sta
 	return nil
 }
 
-func checkCertificateStatus(ctx context.Context, cfg config.Config, stateManager *state.Manager) error {
+func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManager *state.Manager) error {
 	certHelper, err := aws.NewCertificateRegistrationHelper(ctx, cfg)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize certificate registration helper")
@@ -353,51 +371,7 @@ func printDNSValidationInstructions(certs state.CertificateResults) {
 	}
 }
 
-// Uses orgadmin (provided with RSA key) to create a new account whose first admin user is
-// PANTHERACCOUNTADMIN with a newly generated RSA key.
-func setupSnowflakeAccount(ctx context.Context, cfg config.Config) (snowflake.CreateAccountResult, error) {
-	snow := snowflake.AccountCreate{}
-
-	if err := snow.Connect(ctx, cfg.SnowflakeOrgConfig); err != nil {
-		return snowflake.CreateAccountResult{}, errors.Wrap(err, "failed to connect to Snowflake")
-	}
-	defer func() {
-		if err := snow.Close(); err != nil {
-			log.Fatalf("failed to close Snowflake connection: %v\n", err)
-		}
-	}()
-
-	createAcctRes, err := snow.CreateNewSnowflakeAccount(cfg.NewAccountConfig)
-	if err != nil {
-		return snowflake.CreateAccountResult{}, errors.Wrap(err, "failed to create new Snowflake account")
-	}
-
-	return createAcctRes, nil
-}
-
-// Creates a type=person admin user for the customer based on the provided config.
-func snowflakeAdminUserSetup(
-	ctx context.Context,
-	createAcctRes snowflake.CreateAccountResult,
-	cfg config.Config,
-) error {
-	snowAcctSetup := snowflake.AccountSetup{}
-	if err := snowAcctSetup.Connect(ctx, createAcctRes); err != nil {
-		return errors.Wrap(err, "failed to connect to new Snowflake account")
-	}
-	defer func() {
-		if err := snowAcctSetup.Close(); err != nil {
-			log.Fatalf("failed to close Snowflake account setup: %v\n", err)
-		}
-	}()
-
-	if err := snowAcctSetup.SetupCustomerAccountAdminUser(cfg.NewAccountConfig); err != nil {
-		return errors.Wrap(err, "failed to setup Panther account admin user")
-	}
-	return nil
-}
-
-func setupAWS(ctx context.Context, cfg config.Config) error {
+func setupAWS(ctx context.Context, cfg *config.Config) error {
 	awsSetup, err := aws.NewCloudFormation(ctx, cfg.AWSConfig)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize AWS CloudFormation")
@@ -422,7 +396,7 @@ func setupAWS(ctx context.Context, cfg config.Config) error {
 	return nil
 }
 
-func runReadinessCheck(ctx context.Context, cfg config.Config) (state.ReadinessCheckResults, error) {
+func runReadinessCheck(ctx context.Context, cfg *config.Config) (state.ReadinessCheckResults, error) {
 	readinessCheck, err := panther.NewReadinessCheck(ctx, cfg.AWSConfig)
 	if err != nil {
 		return state.ReadinessCheckResults{}, errors.Wrap(err, "failed to initialize readiness check")
@@ -455,15 +429,15 @@ func runReadinessCheck(ctx context.Context, cfg config.Config) (state.ReadinessC
 
 func runSnowflakeCredentialBootstrap(
 	ctx context.Context,
-	cfg config.Config,
-	createAcctRes snowflake.CreateAccountResult,
+	cfg *config.Config,
+	resolvedSnowflakeAcct *snowflake.ResolvedSnowflakeAcccount,
 ) (string, error) {
 	bootstrap, err := aws.NewLocalSnowflakeCredentialBootstrap(ctx, cfg.AWSConfig)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to initialize Snowflake credential bootstrap")
 	}
 
-	credsARN, err := bootstrap.WriteSecret(ctx, createAcctRes)
+	credsARN, err := bootstrap.WriteSecret(ctx, resolvedSnowflakeAcct)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to execute Snowflake credential bootstrap")
 	}

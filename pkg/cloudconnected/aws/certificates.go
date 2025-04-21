@@ -15,7 +15,7 @@ import (
 
 type CertificateRegistrationHelper struct {
 	ctx    context.Context
-	cfg    config.Config
+	cfg    *config.Config
 	client *acm.Client
 }
 
@@ -35,7 +35,7 @@ type CertificateRegistrationResult struct {
 
 func NewCertificateRegistrationHelper(
 	ctx context.Context,
-	cfg config.Config,
+	cfg *config.Config,
 ) (*CertificateRegistrationHelper, error) {
 	// Get AWS config using the utility helper
 	awsCfg, err := util.GetAWSConfig(

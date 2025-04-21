@@ -20,7 +20,7 @@ type Manager struct {
 }
 
 // NewManager creates a new state manager for a given config
-func NewManager(cfg config.Config) (*Manager, error) {
+func NewManager(cfg *config.Config) (*Manager, error) {
 	// Calculate config hash
 	cfgBytes, err := json.Marshal(cfg)
 	if err != nil {
@@ -69,10 +69,8 @@ func (m *Manager) GetState() *Row {
 }
 
 // UpdateSnowflakeState updates the Snowflake-related state
-func (m *Manager) UpdateSnowflakeState(username, password string, accountDetails snowflake.CreateAccountResult) error {
-	m.state.SnowflakeAdminUsername = username
-	m.state.SnowflakeAdminPassword = password
-	m.state.SnowflakeAccountDetails = SnowflakeAccountDetails{CreateAccountResult: accountDetails}
+func (m *Manager) UpdateSnowflakeState(accountDetails *snowflake.ResolvedSnowflakeAcccount) error {
+	m.state.PopulateSnowflakeAccountDetails(accountDetails)
 	return m.SaveState()
 }
 

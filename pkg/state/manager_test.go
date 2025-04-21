@@ -25,7 +25,7 @@ func TestNewManager(t *testing.T) {
 	}()
 
 	// Create a simple test config
-	cfg := config.Config{
+	cfg := &config.Config{
 		AWSConfig: config.AWSConfig{
 			AccessKeyID:     "test-access-key",
 			SecretAccessKey: "test-secret-key",
@@ -113,7 +113,7 @@ func TestStateUpdates(t *testing.T) {
 	}()
 
 	// Create a simple test config
-	cfg := config.Config{
+	cfg := &config.Config{
 		AWSConfig: config.AWSConfig{
 			AccessKeyID:     "test-access-key",
 			SecretAccessKey: "test-secret-key",
@@ -339,7 +339,7 @@ func TestSnowflakeState(t *testing.T) {
 	}()
 
 	// Create a simple test config
-	cfg := config.Config{
+	cfg := &config.Config{
 		AWSConfig: config.AWSConfig{
 			AccessKeyID:     "test-access-key",
 			SecretAccessKey: "test-secret-key",
@@ -362,24 +362,23 @@ func TestSnowflakeState(t *testing.T) {
 		require.NotNil(t, privateKey)
 
 		// Create mock Snowflake account result
-		accountDetails := snowflake.CreateAccountResult{
-			AccountName: "PANTHER_TEST",
-			Region:      "us-west-2.aws",
+		accountDetails := &snowflake.ResolvedSnowflakeAcccount{
+			AccountName: "panther_test-account123",
+			Region:      "aws_us_west_2",
+			Edition:     "ENTERPRISE",
 			URL:         "https://panther_test-account123.snowflakecomputing.com",
 			AdminRSAKey: privateKey,
 		}
 
 		// Update Snowflake state
-		err = manager.UpdateSnowflakeState("testuser", "testpassword", accountDetails)
+		err = manager.UpdateSnowflakeState(accountDetails)
 		require.NoError(t, err)
 
 		// Verify state
 		state := manager.GetState()
-		assert.Equal(t, "testuser", state.SnowflakeAdminUsername)
-		assert.Equal(t, "testpassword", state.SnowflakeAdminPassword)
-		assert.Equal(t, accountDetails.AccountName, state.SnowflakeAccountDetails.CreateAccountResult.AccountName)
-		assert.Equal(t, accountDetails.Region, state.SnowflakeAccountDetails.CreateAccountResult.Region)
-		assert.Equal(t, accountDetails.URL, state.SnowflakeAccountDetails.CreateAccountResult.URL)
-		assert.NotNil(t, state.SnowflakeAccountDetails.CreateAccountResult.AdminRSAKey)
+		assert.Equal(t, accountDetails.AccountName, state.SnowflakeAccountName)
+		assert.Equal(t, accountDetails.Region, state.SnowflakeRegion)
+		assert.Equal(t, accountDetails.Edition, state.SnowflakeEdition)
+		assert.Equal(t, accountDetails.URL, state.SnowflakeAccountURL)
 	})
 }
