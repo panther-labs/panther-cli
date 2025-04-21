@@ -2,6 +2,7 @@ package config
 
 import (
 	"regexp"
+	"slices"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/panther-labs/panther-cli/pkg/util"
@@ -20,8 +21,7 @@ func init() {
 	util.Must(validate.RegisterValidation("validPantherRegion", validatePantherRegion),
 		"couldn't register validPantherRegion validation",
 	)
-
-	validate.RegisterStructValidation(validateEditionsMatch, NewAccountConfig{})
+	validate.RegisterStructValidation(validateEditionsMatch, Config{})
 }
 
 func validateSnowflakeAccountName(fl validator.FieldLevel) bool {
@@ -35,10 +35,26 @@ func validateAdminName(fl validator.FieldLevel) bool {
 }
 
 func validateEditionsMatch(sl validator.StructLevel) {
-	cfg := sl.Current().Interface().(NewAccountConfig)
-	if cfg.PantherEdition == "ENTERPRISE" && cfg.SnowflakeEdition != "ENTERPRISE" {
+	cfg := sl.Current().Interface().(Config)
+
+	var specifiedEdition string
+	if cfg.SnowflakeConfig.NewAccountConfig != nil {
+		specifiedEdition = cfg.SnowflakeConfig.NewAccountConfig.Edition
+	} else if cfg.SnowflakeConfig.ExistingAccountConfig != nil {
+		specifiedEdition = cfg.SnowflakeConfig.ExistingAccountConfig.Edition
+	} else {
 		sl.ReportError(
-			cfg.SnowflakeEdition,
+			cfg.PantherAccountConfig.Edition,
+			"PantherEdition",
+			"PantherEdition",
+			"eqfield",
+			"No Edition appears to have been specified",
+		)
+	}
+
+	if cfg.PantherAccountConfig.Edition == "ENTERPRISE" && specifiedEdition != "ENTERPRISE" {
+		sl.ReportError(
+			specifiedEdition,
 			"SnowflakeEdition",
 			"SnowflakeEdition",
 			"eqfield",
@@ -67,10 +83,5 @@ func validatePantherRegion(fl validator.FieldLevel) bool {
 		"us-west-2",
 	}
 
-	for _, region := range validRegions {
-		if fl.Field().String() == region {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(validRegions, fl.Field().String())
 }

@@ -12,68 +12,27 @@ import (
 
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/snowflake"
-	"github.com/panther-labs/panther-cli/pkg/rsapem"
 )
-
-// SnowflakeAccountDetails wraps snowflake.CreateAccountResult for JSON serialization
-type SnowflakeAccountDetails struct {
-	snowflake.CreateAccountResult
-}
-
-type serializedSnowflakeAccountDetails struct {
-	snowflake.CreateAccountResult
-	SerializedKey string
-}
-
-// Value implements the driver.Valuer interface for JSON storage
-// and handles the RSA key with a dedicated encoder
-func (s SnowflakeAccountDetails) Value() (driver.Value, error) {
-	serializedKey, err := rsapem.EncodeRSAPEMPrivateKey(s.AdminRSAKey)
-	if err != nil {
-		return nil, errors.Wrap(err, "serializing AdminRSAKey in row Valuer")
-	}
-	return json.Marshal(serializedSnowflakeAccountDetails{
-		CreateAccountResult: s.CreateAccountResult,
-		SerializedKey:       serializedKey,
-	})
-}
-
-// Scan implements the sql.Scanner interface for JSON storage
-// and handles the RSA key with a dedicated decoder
-func (s *SnowflakeAccountDetails) Scan(value interface{}) error {
-	b, ok := value.([]byte)
-	if !ok {
-		return errors.New("type assertion to []byte failed")
-	}
-	x := serializedSnowflakeAccountDetails{}
-	err := json.Unmarshal(b, &x)
-	if err != nil {
-		return errors.Wrap(err, "unmarshalling SnowflakeAccountDetails")
-	}
-	s.CreateAccountResult = x.CreateAccountResult
-	s.AdminRSAKey, err = rsapem.ParseRSAPEMPrivateKey(x.SerializedKey)
-	return err
-}
 
 // CertificateValidationRecord represents the DNS validation details for a certificate
 type CertificateValidationRecord struct {
-	DomainName  string `json:"domainName"`
-	RecordName  string `json:"recordName"`
-	RecordValue string `json:"recordValue"`
-	RecordType  string `json:"recordType"`
+	DomainName  string `json:"domain_name"`
+	RecordName  string `json:"record_name"`
+	RecordValue string `json:"record_value"`
+	RecordType  string `json:"record_type"`
 }
 
 // CertificateRecord represents a registered certificate and its validation details
 type CertificateRecord struct {
-	CertificateArn    string                      `json:"certificateArn"`
-	ValidationDetails CertificateValidationRecord `json:"validationDetails"`
-	IsIssued          bool                        `json:"isIssued"`
+	CertificateArn    string                      `json:"certificate_arn"`
+	ValidationDetails CertificateValidationRecord `json:"validation_details"`
+	IsIssued          bool                        `json:"is_issued"`
 }
 
 // CertificateResults stores the results of certificate registration
 type CertificateResults struct {
-	PantherSubdomain  *CertificateRecord `json:"pantherSubdomain,omitempty"`
-	WildcardSubdomain *CertificateRecord `json:"wildcardSubdomain,omitempty"`
+	PantherSubdomain  *CertificateRecord `json:"panther_subdomain,omitempty"`
+	WildcardSubdomain *CertificateRecord `json:"wildcard_subdomain,omitempty"`
 }
 
 // Value implements the driver.Valuer interface for JSON storage
@@ -116,10 +75,10 @@ func (r *ReadinessCheckResults) Scan(value interface{}) error {
 
 type Row struct {
 	ConfigHash                         string `validate:"sha256"`
-	SnowflakeAdminUsername             string
-	SnowflakeAdminPassword             string
-	SnowflakeAdminRSAKey               string
-	SnowflakeAccountDetails            SnowflakeAccountDetails
+	SnowflakeAccountName               string
+	SnowflakeAccountURL                string
+	SnowflakeEdition                   string
+	SnowflakeRegion                    string
 	AWSPantherDeploymentRoleDeployed   bool
 	AWSReadinessBootstrapToolsDeployed bool
 	AWSReadinessCheckSucceeded         bool
@@ -140,14 +99,14 @@ type OutputDetails struct {
 
 	AdminUserFirstName string `json:"admin_user_first_name"`
 	AdminUserLastName  string `json:"admin_user_last_name"`
-	AdminUsername      string `json:"admin_username"`
 	AdminEmail         string `json:"admin_email"`
 
-	AWSAccountID string `json:"aws_account_id"`
-
-	SnowflakeSecretARN string `json:"snowflake_secret_arn"`
-	SnowflakeRegion    string `json:"snowflake_region"`
-	SnowflakeEdition   string `json:"snowflake_edition"`
+	SnowflakeSecretARN   string `json:"snowflake_secret_arn,omitempty"`
+	SnowflakeAccountName string `json:"snowflake_account_name,omitempty"`
+	SnowflakeAccountURL  string `json:"snowflake_account_url,omitempty"`
+	SnowflakeEdition     string `json:"snowflake_edition,omitempty"`
+	SnowflakeRegion      string `json:"snowflake_region,omitempty"`
+	AWSAccountID         string `json:"aws_account_id"`
 
 	PantherCertificateARN  string                 `json:"panther_certificate_arn,omitempty"`
 	WildcardCertificateARN string                 `json:"wildcard_certificate_arn,omitempty"`
@@ -156,7 +115,7 @@ type OutputDetails struct {
 
 // PrettyPrint outputs a human-readable format of the state to the standard logger
 // It requires a config.Config to access some information.
-func (r *Row) PrettyPrint(cfg config.Config) {
+func (r *Row) PrettyPrint(cfg *config.Config) {
 	// Get structured output data
 	output := r.createStructuredOutput(cfg)
 
@@ -165,11 +124,9 @@ func (r *Row) PrettyPrint(cfg config.Config) {
 
 	// Print Snowflake Account Details section
 	log.Printf("Snowflake Account Details:\n")
-	log.Printf("  Account Name: %s\n", r.SnowflakeAccountDetails.AccountName)
-	log.Printf("  URL: %s\n", r.SnowflakeAccountDetails.URL)
-	log.Printf("  Admin Username: %s\n", r.SnowflakeAdminUsername)
-	log.Printf("  Region: %s\n", output.SnowflakeRegion)
-	log.Printf("  Edition: %s\n", output.SnowflakeEdition)
+	log.Printf("  Account Name: %s\n", r.SnowflakeAccountName)
+	log.Printf("  URL: %s\n", r.SnowflakeAccountURL)
+	log.Printf("  Edition: %s\n", r.SnowflakeEdition)
 
 	// Print AWS Account ID if available
 	if output.AWSAccountID != "" {
@@ -224,9 +181,29 @@ func (r *Row) PrettyPrint(cfg config.Config) {
 	}
 }
 
+func (r *Row) PopulateSnowflakeAccountDetails(accountDetails *snowflake.ResolvedSnowflakeAcccount) {
+	fullyQualifiedAccountName, err := accountDetails.GetFullyQualifiedAccountName()
+	if err != nil {
+		log.Printf("failed to get fully qualified account name, error='%s'", err)
+	}
+	r.SnowflakeAccountName = fullyQualifiedAccountName
+	r.SnowflakeAccountURL = accountDetails.URL
+	r.SnowflakeEdition = accountDetails.Edition
+	r.SnowflakeRegion = accountDetails.Region
+}
+
+func (r *Row) RenderNonSensitiveSnowflakeAccountDetails() *snowflake.ResolvedSnowflakeAcccount {
+	return &snowflake.ResolvedSnowflakeAcccount{
+		AccountName: r.SnowflakeAccountName,
+		URL:         r.SnowflakeAccountURL,
+		Edition:     r.SnowflakeEdition,
+		Region:      r.SnowflakeRegion,
+	}
+}
+
 // FormatJSON returns a formatted JSON string representation of the row.
 // It requires a config.Config to generate the output.
-func (r *Row) FormatJSON(cfg config.Config) (string, error) {
+func (r *Row) FormatJSON(cfg *config.Config) (string, error) {
 	// Create structured output
 	output := r.createStructuredOutput(cfg)
 
@@ -240,21 +217,21 @@ func (r *Row) FormatJSON(cfg config.Config) (string, error) {
 }
 
 // createStructuredOutput creates a structured output object with relevant information
-func (r *Row) createStructuredOutput(cfg config.Config) OutputDetails {
+func (r *Row) createStructuredOutput(cfg *config.Config) OutputDetails {
 	// Initialize the output structure
 	output := OutputDetails{
 		AWSAccountID:              cfg.AWSConfig.MustGetAWSAccountID(),
 		PantherSubdomain:          cfg.AWSConfig.DomainCertificateConfiguration.PantherSubdomain,
-		DesiredPantherAccountName: cfg.NewAccountConfig.DesiredPantherAccountName,
-		AdminUserFirstName:        cfg.NewAccountConfig.AdminUserFirstName,
-		AdminUserLastName:         cfg.NewAccountConfig.AdminUserLastName,
-		AdminUsername:             cfg.NewAccountConfig.AdminUsername,
-		AdminEmail:                cfg.NewAccountConfig.AdminEmail,
-		IpAddressAllowList:        cfg.NewAccountConfig.IpAddressAllowList,
-		SnowflakeRegion:           cfg.NewAccountConfig.GetSnowflakeRegion(),
-		SnowflakeEdition:          cfg.NewAccountConfig.SnowflakeEdition,
-		PantherEdition:            cfg.NewAccountConfig.PantherEdition,
-		PantherRegion:             cfg.NewAccountConfig.PantherRegion,
+		DesiredPantherAccountName: cfg.PantherAccountConfig.DesiredAccountName,
+		AdminUserFirstName:        cfg.PantherAccountConfig.AdminUserFirstName,
+		AdminUserLastName:         cfg.PantherAccountConfig.AdminUserLastName,
+		AdminEmail:                cfg.PantherAccountConfig.AdminEmail,
+		IpAddressAllowList:        cfg.PantherAccountConfig.IpAddressAllowList,
+		SnowflakeAccountName:      r.SnowflakeAccountName,
+		SnowflakeAccountURL:       r.SnowflakeAccountURL,
+		SnowflakeEdition:          r.SnowflakeEdition,
+		PantherEdition:            cfg.PantherAccountConfig.Edition,
+		PantherRegion:             cfg.PantherAccountConfig.Region,
 		DeploymentStatus:          make(map[string]interface{}),
 	}
 

@@ -21,15 +21,15 @@ type AccountSetup struct {
 	ctx  context.Context
 }
 
-func (a *AccountSetup) Connect(ctx context.Context, cfg CreateAccountResult) error {
+func (a *AccountSetup) Connect(ctx context.Context, newAcct *ResolvedSnowflakeAcccount) error {
 	tryEnableSnowflakeDebugLogging()
 
 	dsn := util.FormatSnowflakeDSNFromRSAKey(
-		cfg.GetAWSRegion(),
-		cfg.AccountLocator,
-		"PANTHERACCOUNTADMIN",
+		newAcct.GetAWSRegion(),
+		newAcct.AccountLocator,
+		PantherAccountAdminUserName,
 		"ACCOUNTADMIN",
-		cfg.AdminRSAKey,
+		newAcct.AdminRSAKey,
 	)
 	util.LogDebugf("Connecting to Snowflake with DSN: %s", dsn)
 
@@ -41,17 +41,10 @@ func (a *AccountSetup) Connect(ctx context.Context, cfg CreateAccountResult) err
 		log.Println(
 			"Attempting to connect to new Snowflake account. This may take a while and you may see this message repeat.",
 		)
-		db, err := sql.Open("snowflake", dsn)
+		db, err := openSnowflakeAccountConnection(ctx, dsn)
 		if err != nil {
-			return errors.Wrap(err, "failed to open connection")
+			return errors.Wrap(err, "failed to open Snowflake account connection")
 		}
-
-		// Test the connection to make sure it's actually valid.
-		if err := db.Ping(); err != nil {
-			return errors.Wrap(err, "failed to ping database")
-		}
-
-		log.Printf("Successfully connected to new Snowflake account (%s)", cfg.AccountLocator)
 
 		a.sql = db
 		a.ctx = ctx
@@ -60,7 +53,11 @@ func (a *AccountSetup) Connect(ctx context.Context, cfg CreateAccountResult) err
 	}
 
 	if err := backoff.Retry(oper, util.GetDefaultExponentialBackoffRetrier()); err != nil {
-		util.LogDebugf("Failed to connect to new Snowflake account (%s) after retries: %v\n", cfg.AccountLocator, err)
+		util.LogDebugf(
+			"Failed to connect to new Snowflake account (%s) after retries: %v\n",
+			newAcct.AccountLocator,
+			err,
+		)
 		return errors.Wrap(err, "failed to connect to new Snowflake account")
 	}
 
@@ -106,7 +103,7 @@ func (a *AccountSetup) mustSwitchToSecurityAdminRole() {
 	}
 }
 
-func (a *AccountSetup) SetupCustomerAccountAdminUser(cfg config.NewAccountConfig) error {
+func (a *AccountSetup) SetupCustomerAccountAdminUser(cfg *config.NewSnowflakeAccountConfig) error {
 	if !a.isConnected() {
 		return errors.New("not connected to Snowflake")
 	}

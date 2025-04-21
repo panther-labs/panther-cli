@@ -72,7 +72,11 @@ func (r *ReadinessCheck) Exec() (ReadinessCheckResult, error) {
 
 	// Check if the Lambda invocation was successful
 	if output.FunctionError != nil && *output.FunctionError != "" {
-		return ReadinessCheckResult{}, errors.Errorf("Lambda function error: %s", *output.FunctionError)
+		return ReadinessCheckResult{}, errors.Errorf(
+			"Lambda function error: %s - payload=\n%s",
+			*output.FunctionError,
+			string(output.Payload),
+		)
 	}
 
 	// Unmarshal the Lambda response

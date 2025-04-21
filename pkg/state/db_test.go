@@ -58,7 +58,7 @@ func TestDB(t *testing.T) {
 		// Create a new state
 		newState := &Row{
 			ConfigHash:                       configHash,
-			SnowflakeAdminUsername:           "testuser",
+			SnowflakeAccountName:             "testaccount",
 			AWSPantherDeploymentRoleDeployed: true,
 		}
 
@@ -71,11 +71,11 @@ func TestDB(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, retrievedState)
 		assert.Equal(t, configHash, retrievedState.ConfigHash)
-		assert.Equal(t, "testuser", retrievedState.SnowflakeAdminUsername)
+		assert.Equal(t, "testaccount", retrievedState.SnowflakeAccountName)
 		assert.True(t, retrievedState.AWSPantherDeploymentRoleDeployed)
 
 		// Update the state
-		newState.SnowflakeAdminUsername = "updateduser"
+		newState.SnowflakeAccountName = "updatedaccount"
 		err = db.SaveState(newState)
 		require.NoError(t, err)
 
@@ -83,7 +83,7 @@ func TestDB(t *testing.T) {
 		retrievedState, err = db.GetState(configHash)
 		require.NoError(t, err)
 		require.NotNil(t, retrievedState)
-		assert.Equal(t, "updateduser", retrievedState.SnowflakeAdminUsername)
+		assert.Equal(t, "updatedaccount", retrievedState.SnowflakeAccountName)
 	})
 
 	// Test multiple configs
@@ -102,13 +102,13 @@ func TestDB(t *testing.T) {
 		hash2 := "hash2"
 
 		state1 := &Row{
-			ConfigHash:             hash1,
-			SnowflakeAdminUsername: "user1",
+			ConfigHash:           hash1,
+			SnowflakeAccountName: "account1",
 		}
 
 		state2 := &Row{
-			ConfigHash:             hash2,
-			SnowflakeAdminUsername: "user2",
+			ConfigHash:           hash2,
+			SnowflakeAccountName: "account2",
 		}
 
 		// Save both states
@@ -122,11 +122,11 @@ func TestDB(t *testing.T) {
 		retrieved1, err := db.GetState(hash1)
 		require.NoError(t, err)
 		require.NotNil(t, retrieved1)
-		assert.Equal(t, "user1", retrieved1.SnowflakeAdminUsername)
+		assert.Equal(t, "account1", retrieved1.SnowflakeAccountName)
 
 		retrieved2, err := db.GetState(hash2)
 		require.NoError(t, err)
 		require.NotNil(t, retrieved2)
-		assert.Equal(t, "user2", retrieved2.SnowflakeAdminUsername)
+		assert.Equal(t, "account2", retrieved2.SnowflakeAccountName)
 	})
 }

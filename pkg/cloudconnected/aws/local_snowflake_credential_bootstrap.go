@@ -2,7 +2,6 @@ package aws
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"log"
 	"time"
@@ -53,7 +52,7 @@ func NewLocalSnowflakeCredentialBootstrap(
 // WriteSecret writes the secret to AWS Secrets Manager as a JSON payload.
 func (l *LocalSnowflakeCredentialBootstrap) WriteSecret(
 	ctx context.Context,
-	createAccountResult snowflake.CreateAccountResult,
+	createAccountResult *snowflake.ResolvedSnowflakeAcccount,
 ) (string, error) {
 	err := updateSnowflakeSecret(ctx, l.secretsManager, snowflakeSecretName, createAccountResult)
 	if err != nil {
@@ -107,11 +106,11 @@ func (l *LocalSnowflakeCredentialBootstrap) ValidateSecret(ctx context.Context) 
 		"", // we don't need to specify region here
 		secret.Account,
 		secret.Username,
-		"ACCOUNTADMIN",
+		"ACCOUNTADMIN", // the snowflake role, not the user PANTHERACCOUNTADMIN
 		asRsaPrivateKey,
 	)
 
-	db, err := sql.Open("snowflake", dsn)
+	db, err := snowflake.OpenSnowflakeAccountConnection(ctx, dsn)
 	if err != nil {
 		return errors.Wrapf(err, "failed to open connection to Snowflake host: '%s'", secret.Host)
 	}
@@ -135,7 +134,7 @@ func updateSnowflakeSecret(
 	ctx context.Context,
 	sm *secretsmanager.Client,
 	secretName string,
-	createAcctResult snowflake.CreateAccountResult,
+	createAcctResult *snowflake.ResolvedSnowflakeAcccount,
 ) error {
 	getSecretValueInput := &secretsmanager.GetSecretValueInput{
 		SecretId: aws.String(secretName),
@@ -158,11 +157,11 @@ func updateSnowflakeSecret(
 
 	privateKey, err := rsapem.EncodeRSAPEMPrivateKey(createAcctResult.AdminRSAKey)
 	if err != nil {
-		return errors.Wrap(err, "encoding PrivateKey for PANTHERACCOUNTADMIN")
+		return errors.Wrapf(err, "encoding PrivateKey for %s", snowflake.PantherAccountAdminUserName)
 	}
 	publicKey, err := rsapem.EncodeRSAPEMPublicKey(&createAcctResult.AdminRSAKey.PublicKey)
 	if err != nil {
-		return errors.Wrap(err, "encoding PublicKey for PANTHERACCOUNTADMIN")
+		return errors.Wrapf(err, "encoding PublicKey for %s", snowflake.PantherAccountAdminUserName)
 	}
 	createTime := time.Now().UTC().Format(time.RFC3339)
 
