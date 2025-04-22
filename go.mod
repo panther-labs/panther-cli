@@ -21,6 +21,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/mcuadros/go-defaults v1.2.0
 	github.com/pkg/errors v0.9.1
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.1
 	github.com/snowflakedb/gosnowflake v1.13.1
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/text v0.23.0
