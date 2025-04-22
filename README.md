@@ -15,17 +15,17 @@ can be found in the file, but most likely all you'll need is: `just bf`.
 
 Releases for the tool will be automated using [goreleaser][7].
 
-## `panther-cloud-connected-setup`
+## Overview: `panther-cloud-connected-setup`
 
 The `panther-cloud-connected-setup` tool automates the initial provisioning steps for Snowflake
 and AWS for new Cloud Connected Deployments. Specifically, it automates many of the steps outlined
 [here][2], as follows:
 
-- create a new Snowflake account within a Snowflake organization
+- (**optional**) create a new Snowflake account within a Snowflake organization
 - deploy the AWS IAM role `PantherDeploymentRole` to the target AWS account
 - deploy the Pre-Deployment Tooling to the target AWS account
 - execute the `PantherReadinessCheck` Pre-Deployment Tool
-- execute the `PantherSnowflakeCredentialBootstrap` Pre-Deployment Tool
+- validate Snowflake account credentials for connectivity
 - register for SSL certificates for the following subdomains based on your provided root domain:
   - `<desired panther subdomain>.yourdomain.com`
   - `*.<desired panther subdomain>.yourdomain.com`
@@ -36,7 +36,9 @@ friction of setting up a new Cloud Connected account, wherever possible.
 ### Using `panther-cloud-connected-setup`
 
 To use the tool, you'll need to create a config file. We've provided an example config file
-here: [example-config.yml](example-config.yml).
+here: [example-config-existing-snowflake-acct.yml](example-config-existing-snowflake-acct.yml) or
+[example-config-new-snowflake-acct.yml](example-config-new-snowflake-acct.yml).
+
 
 #### Running the Tool with a Config
 
@@ -86,8 +88,9 @@ The following subsection provides specific notes about the expectations the tool
 
 ### Snowflake Notes
 
-- The user specified for `ORGADMIN` credentials must have the fields `NAME` and `LOGIN_NAME` match.
-  To check this, you can use the following command in the Snowflake Console in a SQL worksheet:
+- If you're allowing the tool to create your Snowflake account for you, the user specified for `ORGADMIN` credentials must
+  have the fields `NAME` and `LOGIN_NAME` match. To check this, you can use the following command in the Snowflake Console
+  in a SQL worksheet:
 
     ```sql
     DESC USER <your user>; -- update the username here

@@ -1,0 +1,42 @@
+AWSConfig:
+  AccessKeyID: <YOUR AWS ACCESS KEY ID>
+  SecretAccessKey: <YOUR AWS SECRET ACCESS KEY>
+  CloudFormationConfig:
+    DeploymentRoleName: PantherDeploymentRole # WE RECOMMEND USING THIS VALUE
+    IdentityAccountId: <ASK FOR THIS INFORMATION FROM PANTHER>
+    OpsAccountId: <ASK FOR THIS INFORMATION FROM PANTHER>
+  DomainCertificateConfiguration:
+    PantherSubdomain: panther.yourdomain.com # THIS IS AN EXAMPLE, CHANGE IT TO YOUR DOMAIN
+
+PantherAccountConfig:
+  DesiredAccountName: <YOUR PREFERRED PANTHER ACCOUNT NAME> # shown in Panther UI - "My Cool Panther Account"
+  AdminUserFirstName: <YOUR ADMIN USER'S FIRST NAME>
+  AdminUserLastName: <YOUR ADMIN USER'S LAST NAME>
+  AdminEmail: <YOUR ADMIN USER'S EMAIL>
+  Edition: ENTERPRISE
+  Region: <YOUR PANTHER REGION> # Format this as an AWS region name - e.g. us-west-2
+  IpAddressAllowList: [] # A list of IP addresses formatted as CIDR blocks that are allowed to access the Panther UI.
+
+SnowflakeConfig:
+  NewAccountConfig:
+    OrgConfig:
+      # https://docs.snowflake.com/en/user-guide/admin-account-identifier#format-2-account-locator-in-a-region
+      AccountLocator: <YOUR SNOWFLAKE ACCOUNT LOCATOR>
+
+      # Format this as an AWS region name - e.g. us-west-2
+      AccountRegion: <YOUR SNOWFLAKE ACCOUNT REGION>
+
+      OrgAdminUsername: <YOUR ORGADMIN USERNAME>
+
+      # Path to the file containing your Snowflake OrgAdmin private key
+      OrgAdminPrivateKeyPath: /path/to/your/private-key.pem
+
+    SnowflakeAccountName: <YOUR NEW SNOWFLAKE ACCOUNT NAME> # e.g. yourcompany-panther
+    AdminUsername: <YOUR NEW SNOWFLAKE ACCOUNT ADMIN USERNAME> # e.g. yourusername
+    AdminPassword: 123455678-DE3C-4F67-DDDD-1234asdfasdf! # replace with a strong password
+    SnowflakeEdition: ENTERPRISE # STANDARD, BUSINESS_CRITICAL, or ENTERPRISE - we recommend ENTERPRISE for full features
+
+    # We will write a copy of the PANTHERACCOUNTADMIN Snowflake User's RSA key to the path specified here. This
+    # private key will be used to authenticate the PANTHERACCOUNTADMIN user to the new Snowflake account for intermediate
+    # steps. It is advised that you keep store this private key in a password vault like 1Password.
+    PantherAccountAdminRSAKeyOutputPath: ./keys/panther_account_admin_private_key.pem
