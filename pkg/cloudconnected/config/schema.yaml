@@ -9,6 +9,9 @@ properties:
       SecretAccessKey:
         type: string
         description: Your AWS Secret Access Key.
+      SessionToken:
+        type: string
+        description: Your AWS Session Token.
       CloudFormationConfig:
         type: object
         properties:
@@ -77,7 +80,6 @@ properties:
       - AdminEmail
       - Edition
       - Region
-      - IpAddressAllowList
   SnowflakeConfig:
     type: object
     properties:
