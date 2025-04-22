@@ -3,7 +3,6 @@ description: Go code style and best practices
 globs: *.go
 alwaysApply: true
 ---
-
 <rule>
   - type: event
     pattern: "cursor_suggestion"
@@ -17,6 +16,8 @@ actions:
         message: "Error handling should include context"
       - pattern: "(?s).*var\\s+\\w+\\s+interface{}"
         message: "Avoid empty interface unless absolutely necessary"
+      - pattern: "errors\\.Wrap\\(\\s*err\\s*,\\s*fmt\\.Sprintf\\("
+        message: "Use errors.Wrapf instead of errors.Wrap with fmt.Sprintf"
     message: |
       Follow these Go code style guidelines:
 
@@ -25,25 +26,26 @@ actions:
          - Package name matches directory name
          - Internal packages in 'internal/'
          - Shared packages in 'pkg/'
-      
+
       2. Error Handling:
          - Use pkg/errors for error wrapping
          - Return errors as last return value
          - Always handle errors explicitly
          - Use error variables for sentinel errors
-      
+         - Use `errors.Wrapf` instead of `errors.Wrap(err, fmt.Sprintf(...))`
+
       3. Interface Design:
          - Keep interfaces small
          - Define interfaces at use site
          - Use io.Reader/Writer where applicable
          - Prefer composition over inheritance
-      
+
       4. Concurrency:
          - Use channels for communication
          - Mutex for simple state protection
          - Document concurrent access
          - Close channels when done
-      
+
       5. Testing:
          - Table-driven tests
          - Use testify for assertions
@@ -60,7 +62,7 @@ examples:
     output: |
       func processData(data []byte) error {
           if len(data) == 0 {
-              return fmt.Errorf("processData: empty data")
+              return errors.Errorf("processData: empty data")
           }
           // process with error handling
           return nil
@@ -72,7 +74,7 @@ examples:
       }
     output: |
       if err != nil {
-          return fmt.Errorf("failed to process data: %w", err)
+          return errors.Errorf("failed to process data: %w", err)
       }
   - input: |
       func TestSomething(t *testing.T) {
@@ -91,4 +93,4 @@ metadata:
   version: "1.0"
   category: code_style
   maintainer: Panther Labs Inc.
-</rule> 
+</rule>
