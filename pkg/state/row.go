@@ -108,9 +108,9 @@ type OutputDetails struct {
 	SnowflakeRegion      string `json:"snowflake_region,omitempty"`
 	AWSAccountID         string `json:"aws_account_id"`
 
-	PantherCertificateARN  string                 `json:"panther_certificate_arn,omitempty"`
-	WildcardCertificateARN string                 `json:"wildcard_certificate_arn,omitempty"`
-	DeploymentStatus       map[string]interface{} `json:"deployment_status"`
+	PantherCertificate  *CertificateRecord     `json:"panther_certificate,omitempty"`
+	WildcardCertificate *CertificateRecord     `json:"wildcard_certificate,omitempty"`
+	DeploymentStatus    map[string]interface{} `json:"deployment_status"`
 }
 
 // PrettyPrint outputs a human-readable format of the state to the standard logger
@@ -154,29 +154,25 @@ func (r *Row) PrettyPrint(cfg *config.Config) {
 	}
 
 	// Print Certificate Status section if certificates exist
-	if output.PantherCertificateARN != "" || output.WildcardCertificateARN != "" {
+	if output.PantherCertificate != nil || output.WildcardCertificate != nil {
 		log.Printf("Certificate Status:\n")
 
-		if output.PantherCertificateARN != "" {
+		if output.PantherCertificate != nil {
 			log.Printf("  Panther Subdomain Certificate:\n")
-			log.Printf("    ARN: %s\n", output.PantherCertificateARN)
-			// Get certificate issuance status which isn't in the OutputDetails
-			isIssued := false
-			if r.AWSCertificatesResults.PantherSubdomain != nil {
-				isIssued = r.AWSCertificatesResults.PantherSubdomain.IsIssued
-			}
-			log.Printf("    Issued: %v\n", isIssued)
+			log.Printf("    ARN: %s\n", output.PantherCertificate.CertificateArn)
+			// Get certificate issuance status directly from the struct
+			log.Printf("    Issued: %v\n", output.PantherCertificate.IsIssued)
+			// Optionally print validation details if needed
+			log.Printf("    Validation Details: %+v\n", output.PantherCertificate.ValidationDetails)
 		}
 
-		if output.WildcardCertificateARN != "" {
+		if output.WildcardCertificate != nil {
 			log.Printf("  Wildcard Certificate:\n")
-			log.Printf("    ARN: %s\n", output.WildcardCertificateARN)
-			// Get certificate issuance status which isn't in the OutputDetails
-			isIssued := false
-			if r.AWSCertificatesResults.WildcardSubdomain != nil {
-				isIssued = r.AWSCertificatesResults.WildcardSubdomain.IsIssued
-			}
-			log.Printf("    Issued: %v\n", isIssued)
+			log.Printf("    ARN: %s\n", output.WildcardCertificate.CertificateArn)
+			// Get certificate issuance status directly from the struct
+			log.Printf("    Issued: %v\n", output.WildcardCertificate.IsIssued)
+			// Optionally print validation details if needed
+			log.Printf("    Validation Details: %+v\n", output.WildcardCertificate.ValidationDetails)
 		}
 	}
 }
@@ -232,15 +228,9 @@ func (r *Row) createStructuredOutput(cfg *config.Config) OutputDetails {
 		SnowflakeEdition:          r.SnowflakeEdition,
 		PantherEdition:            cfg.PantherAccountConfig.Edition,
 		PantherRegion:             cfg.PantherAccountConfig.Region,
+		PantherCertificate:        r.AWSCertificatesResults.PantherSubdomain,
+		WildcardCertificate:       r.AWSCertificatesResults.WildcardSubdomain,
 		DeploymentStatus:          make(map[string]interface{}),
-	}
-
-	// Add certificate ARNs if available
-	if r.AWSCertificatesResults.PantherSubdomain != nil {
-		output.PantherCertificateARN = r.AWSCertificatesResults.PantherSubdomain.CertificateArn
-	}
-	if r.AWSCertificatesResults.WildcardSubdomain != nil {
-		output.WildcardCertificateARN = r.AWSCertificatesResults.WildcardSubdomain.CertificateArn
 	}
 
 	// Add deployment status information
