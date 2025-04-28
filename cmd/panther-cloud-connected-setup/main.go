@@ -61,7 +61,7 @@ func main() {
 		if err := stateManager.UpdateSnowflakeState(resolvedSnowflakeAccount, false); err != nil {
 			log.Fatalf("failed to update Snowflake state: %v\n", err)
 		}
-		log.Println("Successfully resolved Snowflake account")
+		log.Printf("Successfully resolved Snowflake account: %s\n", resolvedSnowflakeAccount.URL)
 
 		if err := snowflakeSetup.SetupAccount(resolvedSnowflakeAccount); err != nil {
 			log.Fatalf("failed to setup Snowflake account: %v\n", err)
@@ -71,7 +71,7 @@ func main() {
 			log.Fatalf("failed to update Snowflake state: %v\n", err)
 		}
 	} else {
-		log.Println("Using existing Snowflake account details")
+		log.Printf("Using existing Snowflake account details: %s\n", currentState.SnowflakeAccountURL)
 
 		resolvedSnowflakeAccount = currentState.RenderNonSensitiveSnowflakeAccountDetails()
 
