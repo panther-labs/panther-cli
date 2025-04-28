@@ -69,8 +69,9 @@ func (m *Manager) GetState() *Row {
 }
 
 // UpdateSnowflakeState updates the Snowflake-related state
-func (m *Manager) UpdateSnowflakeState(accountDetails *snowflake.ResolvedSnowflakeAcccount) error {
+func (m *Manager) UpdateSnowflakeState(accountDetails *snowflake.ResolvedSnowflakeAcccount, accountSetup bool) error {
 	m.state.PopulateSnowflakeAccountDetails(accountDetails)
+	m.state.SnowflakeAccountSetup = accountSetup
 	return m.SaveState()
 }
 

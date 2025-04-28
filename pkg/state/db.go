@@ -18,6 +18,7 @@ const (
 		snowflake_account_url TEXT,
 		snowflake_edition TEXT,
 		snowflake_region TEXT,
+		snowflake_account_setup BOOLEAN,
 		aws_panther_deployment_role_deployed BOOLEAN,
 		aws_readiness_bootstrap_tools_deployed BOOLEAN,
 		aws_readiness_check_succeeded BOOLEAN,
@@ -78,6 +79,7 @@ func (d *DB) GetState(configHash string) (*Row, error) {
 			snowflake_account_url,
 			snowflake_edition,
 			snowflake_region,
+			snowflake_account_setup,
 			aws_panther_deployment_role_deployed,
 			aws_readiness_bootstrap_tools_deployed,
 			aws_readiness_check_succeeded,
@@ -96,6 +98,7 @@ func (d *DB) GetState(configHash string) (*Row, error) {
 		&row.SnowflakeAccountURL,
 		&row.SnowflakeEdition,
 		&row.SnowflakeRegion,
+		&row.SnowflakeAccountSetup,
 		&row.AWSPantherDeploymentRoleDeployed,
 		&row.AWSReadinessBootstrapToolsDeployed,
 		&row.AWSReadinessCheckSucceeded,
@@ -162,6 +165,7 @@ func (d *DB) SaveState(row *Row) error {
 			snowflake_account_url,
 			snowflake_edition,
 			snowflake_region,
+			snowflake_account_setup,
 			aws_panther_deployment_role_deployed,
 			aws_readiness_bootstrap_tools_deployed,
 			aws_readiness_check_succeeded,
@@ -170,11 +174,12 @@ func (d *DB) SaveState(row *Row) error {
 			aws_snowflake_secret_arn,
 			aws_certificates_requested,
 			aws_certificates_results
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(config_hash) DO UPDATE SET
 			snowflake_account_name = excluded.snowflake_account_name,
 			snowflake_account_url = excluded.snowflake_account_url,
 			snowflake_edition = excluded.snowflake_edition,
+			snowflake_account_setup = excluded.snowflake_account_setup,
 			aws_panther_deployment_role_deployed = excluded.aws_panther_deployment_role_deployed,
 			aws_readiness_bootstrap_tools_deployed = excluded.aws_readiness_bootstrap_tools_deployed,
 			aws_readiness_check_succeeded = excluded.aws_readiness_check_succeeded,
@@ -191,6 +196,7 @@ func (d *DB) SaveState(row *Row) error {
 		row.SnowflakeAccountURL,
 		row.SnowflakeEdition,
 		row.SnowflakeRegion,
+		row.SnowflakeAccountSetup,
 		row.AWSPantherDeploymentRoleDeployed,
 		row.AWSReadinessBootstrapToolsDeployed,
 		row.AWSReadinessCheckSucceeded,

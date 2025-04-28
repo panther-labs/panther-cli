@@ -53,15 +53,23 @@ func main() {
 	if currentState.SnowflakeAccountName == "" {
 		// Setup Snowflake if not already done
 		snowflakeSetup := snowflake.NewSnowflakeSetup(ctx, cfg)
-		resolvedSnowflakeAccount, err = snowflakeSetup.Run()
+		resolvedSnowflakeAccount, err = snowflakeSetup.CreateOrResolveAccount()
 		if err != nil {
 			log.Fatalf("failed to setup Snowflake: %v\n", err)
 		}
 
-		if err := stateManager.UpdateSnowflakeState(resolvedSnowflakeAccount); err != nil {
+		if err := stateManager.UpdateSnowflakeState(resolvedSnowflakeAccount, false); err != nil {
 			log.Fatalf("failed to update Snowflake state: %v\n", err)
 		}
 		log.Printf("Successfully resolved Snowflake account: %s\n", resolvedSnowflakeAccount.URL)
+
+		if err := snowflakeSetup.SetupAccount(resolvedSnowflakeAccount); err != nil {
+			log.Fatalf("failed to setup Snowflake account: %v\n", err)
+		}
+
+		if err := stateManager.UpdateSnowflakeState(resolvedSnowflakeAccount, true); err != nil {
+			log.Fatalf("failed to update Snowflake state: %v\n", err)
+		}
 	} else {
 		log.Printf("Using existing Snowflake account details: %s\n", currentState.SnowflakeAccountURL)
 

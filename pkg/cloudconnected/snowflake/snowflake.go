@@ -18,19 +18,16 @@ func NewSnowflakeSetup(ctx context.Context, cfg *config.Config) *SnowflakeSetup 
 	return &SnowflakeSetup{ctx, cfg}
 }
 
-func (s *SnowflakeSetup) Run() (resolvedAccount *ResolvedSnowflakeAcccount, err error) {
+func (s *SnowflakeSetup) CreateOrResolveAccount() (resolvedAccount *ResolvedSnowflakeAcccount, err error) {
 	if s.cfg.SnowflakeConfig.ConfigType == config.SnowflakeConfigTypeNewAccount {
-		// create the account
+		log.Println("Creating new Snowflake account")
 		resolvedAccount, err = s.createSnowflakeAccount()
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create Snowflake account")
 		}
-
-		// setup the account
-		if err := s.setupSnowflakeAdmin(resolvedAccount); err != nil {
-			return nil, errors.Wrap(err, "failed to setup Snowflake account")
-		}
 	} else {
+		log.Println("Existing Snowflake account specified, resolving account details")
+
 		// fill out createAccountResult with the existing account details
 		privateKeyAsStr, err := s.cfg.SnowflakeConfig.ExistingAccountConfig.LoadPantherAccountAdminRSAKey()
 		if err != nil {
@@ -56,6 +53,17 @@ func (s *SnowflakeSetup) Run() (resolvedAccount *ResolvedSnowflakeAcccount, err 
 	}
 
 	return resolvedAccount, nil
+}
+
+func (s *SnowflakeSetup) SetupAccount(resolvedAccount *ResolvedSnowflakeAcccount) error {
+	if s.cfg.SnowflakeConfig.ConfigType == config.SnowflakeConfigTypeNewAccount {
+		log.Println("Setting up new Snowflake account's admin user")
+		if err := s.setupSnowflakeAdmin(resolvedAccount); err != nil {
+			return errors.Wrap(err, "failed to setup Snowflake account")
+		}
+	}
+
+	return nil
 }
 
 // Uses orgadmin (provided with RSA key) to create a new account whose first admin user is

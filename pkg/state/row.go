@@ -79,6 +79,7 @@ type Row struct {
 	SnowflakeAccountURL                string
 	SnowflakeEdition                   string
 	SnowflakeRegion                    string
+	SnowflakeAccountSetup              bool
 	AWSPantherDeploymentRoleDeployed   bool
 	AWSReadinessBootstrapToolsDeployed bool
 	AWSReadinessCheckSucceeded         bool
@@ -106,6 +107,7 @@ type OutputDetails struct {
 	SnowflakeAccountURL  string `json:"snowflake_account_url,omitempty"`
 	SnowflakeEdition     string `json:"snowflake_edition,omitempty"`
 	SnowflakeRegion      string `json:"snowflake_region,omitempty"`
+	SnowflakeAdminSetup  bool   `json:"snowflake_admin_setup,omitempty"`
 	AWSAccountID         string `json:"aws_account_id"`
 
 	PantherCertificate  *CertificateRecord     `json:"panther_certificate,omitempty"`

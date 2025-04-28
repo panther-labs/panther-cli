@@ -371,7 +371,7 @@ func TestSnowflakeState(t *testing.T) {
 		}
 
 		// Update Snowflake state
-		err = manager.UpdateSnowflakeState(accountDetails)
+		err = manager.UpdateSnowflakeState(accountDetails, true)
 		require.NoError(t, err)
 
 		// Verify state
