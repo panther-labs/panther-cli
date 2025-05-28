@@ -24,7 +24,7 @@ type AWSConfig struct {
 // using the AWS STS service. This is useful to dynamically identify the AWS account.
 func (a *AWSConfig) GetAWSAccountID(ctx context.Context) (string, error) {
 	// Create AWS config from credentials
-	awsCfg, err := util.GetAWSConfig(ctx, a.AccessKeyID, a.SecretAccessKey, a.SessionToken)
+	awsCfg, err := util.GetAWSConfig(ctx, a.Region, a.AccessKeyID, a.SecretAccessKey, a.SessionToken)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to initialize AWS client config")
 	}

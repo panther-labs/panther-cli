@@ -20,7 +20,7 @@ type ReadinessCheck struct {
 }
 
 func NewReadinessCheck(ctx context.Context, cfg config.AWSConfig) (*ReadinessCheck, error) {
-	awsCfg, err := util.GetAWSConfig(ctx, cfg.AccessKeyID, cfg.SecretAccessKey, cfg.SessionToken)
+	awsCfg, err := util.GetAWSConfig(ctx, cfg.Region, cfg.AccessKeyID, cfg.SecretAccessKey, cfg.SessionToken)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to initialize AWS client config")
 	}

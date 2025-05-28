@@ -60,7 +60,7 @@ properties:
         description: Email address of the initial Panther admin user.
       Edition:
         type: string
-        enum: [STANDARD, BUSINESS_CRITICAL, ENTERPRISE]
+        enum: [ESSENTIALS, ENTERPRISE]
         description: The Panther edition.
       Region:
         type: string

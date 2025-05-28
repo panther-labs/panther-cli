@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager/types"
 
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/snowflake"
@@ -21,12 +22,12 @@ const (
 )
 
 type SnowflakeCredentialSecret struct {
-	Account     string `json:"account"     `
-	Username    string `json:"user"        `
-	PrivateKey1 string `json:"privateKey1" `
-	Host        string `json:"host"        `
-	Port        string `json:"port"        `
-	secretARN   string `json:"-"           `
+	Account     string `json:"account"`
+	Username    string `json:"user"`
+	PrivateKey1 string `json:"privateKey1"`
+	Host        string `json:"host"`
+	Port        string `json:"port"`
+	secretARN   string `json:"-"`
 }
 
 type LocalSnowflakeCredentialBootstrap struct {
@@ -37,7 +38,13 @@ func NewLocalSnowflakeCredentialBootstrap(
 	ctx context.Context,
 	awsConfig config.AWSConfig,
 ) (*LocalSnowflakeCredentialBootstrap, error) {
-	cfg, err := util.GetAWSConfig(ctx, awsConfig.AccessKeyID, awsConfig.SecretAccessKey, awsConfig.SessionToken)
+	cfg, err := util.GetAWSConfig(
+		ctx,
+		awsConfig.Region,
+		awsConfig.AccessKeyID,
+		awsConfig.SecretAccessKey,
+		awsConfig.SessionToken,
+	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get AWS config")
 	}
@@ -140,8 +147,17 @@ func updateSnowflakeSecret(
 		SecretId: aws.String(secretName),
 	}
 
+	// Get the existing secret. If it doesn't exist, just create a new one and don't fail.
+	// If it does exist, confirm the values in the secret match the values passed in to function args.
+	// If there is a mismatch, overwrite the secret with new values.
 	getSecretValueOutput, err := sm.GetSecretValue(ctx, getSecretValueInput)
 	if err != nil {
+		// If the secret doesn't exist, create a new one
+		errNotFound := &types.ResourceNotFoundException{}
+		if errors.As(err, &errNotFound) {
+			log.Printf("Secret does not exist. Creating new secret.")
+			return createNewSnowflakeSecret(ctx, sm, secretName, createAcctResult)
+		}
 		return errors.Wrap(err, "failed to get existing Snowflake secret")
 	}
 
@@ -150,30 +166,24 @@ func updateSnowflakeSecret(
 		return errors.Wrap(err, "failed to unmarshal existing Snowflake secret")
 	}
 
-	fullyQualifiedAccount, err := createAcctResult.GetFullyQualifiedAccountName()
+	updatedSecretMap, err := createSecretPayload(createAcctResult)
 	if err != nil {
-		return errors.Wrap(err, "failed to get fully qualified account name")
+		return errors.Wrap(err, "failed to create secret payload")
 	}
 
-	privateKey, err := rsapem.EncodeRSAPEMPrivateKey(createAcctResult.AdminRSAKey)
-	if err != nil {
-		return errors.Wrapf(err, "encoding PrivateKey for %s", snowflake.PantherAccountAdminUserName)
+	if secretMap["host"] == updatedSecretMap["host"] &&
+		secretMap["account"] == updatedSecretMap["account"] &&
+		secretMap["user"] == updatedSecretMap["user"] &&
+		secretMap["privateKey1"] == updatedSecretMap["privateKey1"] &&
+		secretMap["publicKey1"] == updatedSecretMap["publicKey1"] {
+		log.Printf("Secret already exists and matches the expected values. Skipping update.")
+		return nil
 	}
-	publicKey, err := rsapem.EncodeRSAPEMPublicKey(&createAcctResult.AdminRSAKey.PublicKey)
-	if err != nil {
-		return errors.Wrapf(err, "encoding PublicKey for %s", snowflake.PantherAccountAdminUserName)
-	}
-	createTime := time.Now().UTC().Format(time.RFC3339)
 
-	// Update the secret values
-	secretMap["host"] = createAcctResult.URL
-	secretMap["account"] = fullyQualifiedAccount
-	secretMap["privateKey1"] = privateKey
-	secretMap["publicKey1"] = publicKey
-	secretMap["privateKey1CreateTimestamp"] = createTime
+	log.Printf("Secret already exists but is not up to date. Updating secret.")
 
 	// Marshal the updated secret back to JSON
-	updatedSecretString, err := json.Marshal(secretMap)
+	updatedSecretString, err := json.Marshal(updatedSecretMap)
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal updated Snowflake secret")
 	}
@@ -190,4 +200,64 @@ func updateSnowflakeSecret(
 	}
 
 	return nil
+}
+
+// createNewSnowflakeSecret creates a new Snowflake secret in AWS Secrets Manager
+func createNewSnowflakeSecret(
+	ctx context.Context,
+	sm *secretsmanager.Client,
+	secretName string,
+	createAcctResult *snowflake.ResolvedSnowflakeAcccount,
+) error {
+	secretMap, err := createSecretPayload(createAcctResult)
+	if err != nil {
+		return errors.Wrap(err, "failed to create secret payload")
+	}
+
+	secretString, err := json.Marshal(secretMap)
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal new Snowflake secret")
+	}
+
+	createSecretInput := &secretsmanager.CreateSecretInput{
+		Name:         aws.String(secretName),
+		SecretString: aws.String(string(secretString)),
+	}
+
+	_, err = sm.CreateSecret(ctx, createSecretInput)
+	if err != nil {
+		return errors.Wrap(err, "failed to create new Snowflake secret")
+	}
+
+	return nil
+}
+
+func createSecretPayload(
+	createAcctResult *snowflake.ResolvedSnowflakeAcccount,
+) (map[string]string, error) {
+	fullyQualifiedAccount, err := createAcctResult.GetFullyQualifiedAccountName()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get fully qualified account name")
+	}
+
+	privateKey, err := rsapem.EncodeRSAPEMPrivateKey(createAcctResult.AdminRSAKey)
+	if err != nil {
+		return nil, errors.Wrapf(err, "encoding PrivateKey for %s", snowflake.PantherAccountAdminUserName)
+	}
+	publicKey, err := rsapem.EncodeRSAPEMPublicKey(&createAcctResult.AdminRSAKey.PublicKey)
+	if err != nil {
+		return nil, errors.Wrapf(err, "encoding PublicKey for %s", snowflake.PantherAccountAdminUserName)
+	}
+	createTime := time.Now().UTC().Format(time.RFC3339)
+
+	secretMap := map[string]string{
+		"host":                       createAcctResult.URL,
+		"user":                       snowflake.PantherAccountAdminUserName,
+		"account":                    fullyQualifiedAccount,
+		"privateKey1":                privateKey,
+		"publicKey1":                 publicKey,
+		"privateKey1CreateTimestamp": createTime,
+	}
+
+	return secretMap, nil
 }
