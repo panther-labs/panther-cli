@@ -40,6 +40,7 @@ func NewCertificateRegistrationHelper(
 	// Get AWS config using the utility helper
 	awsCfg, err := util.GetAWSConfig(
 		ctx,
+		cfg.AWSConfig.Region,
 		cfg.AWSConfig.AccessKeyID,
 		cfg.AWSConfig.SecretAccessKey,
 		cfg.AWSConfig.SessionToken,
@@ -65,6 +66,7 @@ func NewCertificateRegistrationHelper(
 func (c *CertificateRegistrationHelper) getACMClientForRegion(region string) (*acm.Client, error) {
 	awsCfg, err := util.GetAWSConfig(
 		c.ctx,
+		c.cfg.AWSConfig.Region,
 		c.cfg.AWSConfig.AccessKeyID,
 		c.cfg.AWSConfig.SecretAccessKey,
 		c.cfg.AWSConfig.SessionToken,

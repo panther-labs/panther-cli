@@ -13,7 +13,7 @@ import (
 const maxRetries = 5
 
 //nolint:forbidigo
-func GetAWSConfig(ctx context.Context, accessKeyID, secretAccessKey, sessionToken string) (aws.Config, error) {
+func GetAWSConfig(ctx context.Context, region, accessKeyID, secretAccessKey, sessionToken string) (aws.Config, error) {
 	awsCfg, err := config.LoadDefaultConfig(
 		ctx,
 		config.WithCredentialsProvider(
