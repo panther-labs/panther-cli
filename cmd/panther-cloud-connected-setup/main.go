@@ -11,7 +11,6 @@ import (
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/panther"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/snowflake"
-	"github.com/panther-labs/panther-cli/pkg/rsapem"
 	"github.com/panther-labs/panther-cli/pkg/state"
 	"github.com/panther-labs/panther-cli/pkg/util"
 	"github.com/pkg/errors"
@@ -55,7 +54,7 @@ func main() {
 		snowflakeSetup := snowflake.NewSnowflakeSetup(ctx, cfg)
 		resolvedSnowflakeAccount, err = snowflakeSetup.CreateOrResolveAccount()
 		if err != nil {
-			log.Fatalf("failed to setup Snowflake: %v\n", err)
+			log.Fatalf("failed to create or resolve Snowflake account: %v\n", err)
 		}
 
 		if err := stateManager.UpdateSnowflakeState(resolvedSnowflakeAccount, false); err != nil {
@@ -75,25 +74,9 @@ func main() {
 
 		resolvedSnowflakeAccount = currentState.RenderNonSensitiveSnowflakeAccountDetails()
 
-		var privateKeyAsStr string
-		switch cfg.SnowflakeConfig.ConfigType {
-		case config.SnowflakeConfigTypeExistingAccount:
-			pk, err := cfg.SnowflakeConfig.ExistingAccountConfig.LoadPantherAccountAdminRSAKey()
-			if err != nil {
-				log.Fatalf("failed to load existing Snowflake account's %s RSA key: %s\n", snowflake.PantherAccountAdminUserName, err.Error())
-			}
-			privateKeyAsStr = pk
-		case config.SnowflakeConfigTypeNewAccount:
-			pk, err := cfg.SnowflakeConfig.NewAccountConfig.LoadPantherAccountAdminRSAKey()
-			if err != nil {
-				log.Fatalf("failed to generate new Snowflake account's %s RSA key: %s\n", snowflake.PantherAccountAdminUserName, err.Error())
-			}
-			privateKeyAsStr = pk
-		}
-
-		privateKey, err := rsapem.ParseRSAPEMPrivateKey(privateKeyAsStr)
+		privateKey, err := cfg.SnowflakeConfig.GetPantherAccountAdminRSAKey()
 		if err != nil {
-			log.Fatalf("failed to parse existing Snowflake account's %s RSA key: %s\n", snowflake.PantherAccountAdminUserName, err.Error())
+			log.Fatalf("failed to get PANTHERACCOUNTADMIN RSA key: %s\n", err.Error())
 		}
 		resolvedSnowflakeAccount.AdminRSAKey = privateKey
 	}

@@ -2,18 +2,15 @@ package snowflake
 
 import (
 	"context"
-	"crypto/rsa"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/k0kubun/pp/v3"
 	"github.com/pkg/errors"
 
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
-	"github.com/panther-labs/panther-cli/pkg/rsapem"
 )
 
 // Configuration for Snowflake connection is by using the
@@ -66,46 +63,6 @@ func (a *AccountCreate) mustSwitchToOrgAdminRole() {
 	}
 }
 
-// CreateAndWritePantherAccountAdminRSAKeyPair generates a new RSA key pair,
-// writes the private key (PEM encoded) to the path specified in cfg.PantherAccountAdminRSAKeyOutputPath,
-// and returns the private key object and the PEM encoded public key string.
-func CreateAndWritePantherAccountAdminRSAKeyPair(
-	cfg *config.NewSnowflakeAccountConfig,
-) (*rsa.PrivateKey, string, error) {
-	key, err := rsapem.GenerateKeyPair()
-	if err != nil {
-		return nil, "", errors.Wrap(err, fmt.Sprintf("failed to generate %s RSA key pair", PantherAccountAdminUserName))
-	}
-
-	pubkeyPEM, err := rsapem.EncodeRSAPEMPublicKey(key.PublicKey)
-	if err != nil {
-		return nil, "", errors.Wrap(err, fmt.Sprintf("failed to encode %s RSA public key", PantherAccountAdminUserName))
-	}
-
-	// Encode and write the private key to the specified output path
-	privKeyPEMBytes, err := rsapem.EncodeRSAPEMPrivateKey(key.PrivateKey)
-	if err != nil {
-		return nil, "", errors.Wrapf(
-			err,
-			"failed to encode %s RSA private key",
-			PantherAccountAdminUserName,
-		)
-	}
-	// Ensure the key is written with restricted permissions (owner read/write only)
-	err = os.WriteFile(cfg.PantherAccountAdminRSAKeyOutputPath, []byte(privKeyPEMBytes), 0o600)
-	if err != nil {
-		return nil, "", errors.Wrapf(
-			err,
-			"failed to write %s RSA private key to %s",
-			PantherAccountAdminUserName,
-			cfg.PantherAccountAdminRSAKeyOutputPath,
-		)
-	}
-	log.Printf("Wrote %s RSA private key to %s", PantherAccountAdminUserName, cfg.PantherAccountAdminRSAKeyOutputPath)
-
-	return key.PrivateKey, pubkeyPEM, nil
-}
-
 // New accounts are created with PANTHERACCOUNTADMIN and a newly generated RSA key
 func (a *AccountCreate) CreateNewSnowflakeAccount(
 	cfg *config.NewSnowflakeAccountConfig,
@@ -118,7 +75,9 @@ func (a *AccountCreate) CreateNewSnowflakeAccount(
 
 	createAcctRes := &ResolvedSnowflakeAcccount{}
 
-	privateKey, pubkeyPEM, err := CreateAndWritePantherAccountAdminRSAKeyPair(cfg)
+	privateKey, pubkeyPEM, err := createAndWritePantherAccountAdminRSAPrivateKey(
+		cfg.PantherAccountAdminRSAKeyOutputPath,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -146,12 +105,12 @@ CREATE ACCOUNT %s
 
 	var result string
 	if err := row.Scan(&result); err != nil {
-		return createAcctRes, errors.Wrapf(err, "error scanning result from CREATE ACCOUNT query")
+		return nil, errors.Wrapf(err, "error scanning result from CREATE ACCOUNT query")
 	}
 
 	err = json.Unmarshal(json.RawMessage(result), &createAcctRes)
 	if err != nil {
-		return createAcctRes, errors.Wrap(err, "error unmarshalling of CREATE ACCOUNT output")
+		return nil, errors.Wrap(err, "error unmarshalling of CREATE ACCOUNT output")
 	}
 
 	// Snowflake is weird and when you create an account, it returns the account name
@@ -159,9 +118,13 @@ CREATE ACCOUNT %s
 	// response payload.
 	fullyQualifiedAccountName, err := createAcctRes.GetFullyQualifiedAccountName()
 	if err != nil {
-		return createAcctRes, errors.Wrap(err, "error getting fully qualified account name")
+		return nil, errors.Wrap(err, "error getting fully qualified account name")
 	}
 	createAcctRes.AccountName = fullyQualifiedAccountName
+
+	// when we create the account using their ORGADMIN credentials,
+	// we use the PANTHERACCOUNTADMIN as the admin username to do further configuration
+	createAcctRes.AdminUsername = PantherAccountAdminUserName
 
 	log.Printf("Created new Snowflake account: %v", pp.Sprintln(createAcctRes))
 	// log before adding the RSA key to the result

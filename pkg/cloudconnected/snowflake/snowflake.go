@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
-	"github.com/panther-labs/panther-cli/pkg/rsapem"
 	"github.com/pkg/errors"
 )
 
@@ -29,22 +28,18 @@ func (s *SnowflakeSetup) CreateOrResolveAccount() (resolvedAccount *ResolvedSnow
 		log.Println("Existing Snowflake account specified, resolving account details")
 
 		// fill out createAccountResult with the existing account details
-		privateKeyAsStr, err := s.cfg.SnowflakeConfig.ExistingAccountConfig.LoadPantherAccountAdminRSAKey()
+		privateKey, err := s.cfg.SnowflakeConfig.ExistingAccountConfig.LoadAccountAdminRSAKey()
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to load Panther account admin RSA key")
 		}
 
-		privateKey, err := rsapem.ParseRSAPEMPrivateKey(privateKeyAsStr)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to decode Panther account admin RSA key")
-		}
-
 		resolvedAccount = &ResolvedSnowflakeAcccount{
-			AccountName: s.cfg.SnowflakeConfig.ExistingAccountConfig.AccountName,
-			URL:         s.cfg.SnowflakeConfig.ExistingAccountConfig.URL,
-			Edition:     s.cfg.SnowflakeConfig.ExistingAccountConfig.Edition,
-			Region:      s.cfg.SnowflakeConfig.ExistingAccountConfig.Region,
-			AdminRSAKey: privateKey,
+			AccountName:   s.cfg.SnowflakeConfig.ExistingAccountConfig.AccountName,
+			URL:           s.cfg.SnowflakeConfig.ExistingAccountConfig.URL,
+			Edition:       s.cfg.SnowflakeConfig.ExistingAccountConfig.Edition,
+			Region:        s.cfg.SnowflakeConfig.ExistingAccountConfig.Region,
+			AdminUsername: s.cfg.SnowflakeConfig.ExistingAccountConfig.AdminUsername,
+			AdminRSAKey:   privateKey,
 		}
 	}
 
@@ -102,8 +97,23 @@ func (s *SnowflakeSetup) setupSnowflakeAdmin(
 		}
 	}()
 
-	if err := snowAcctSetup.SetupCustomerAccountAdminUser(s.cfg.SnowflakeConfig.NewAccountConfig); err != nil {
-		return errors.Wrap(err, "failed to setup Panther account admin user")
+	if s.cfg.SnowflakeConfig.ConfigType == config.SnowflakeConfigTypeNewAccount {
+		if err := snowAcctSetup.CreateCustomerAccountAdminUser(s.cfg.SnowflakeConfig.NewAccountConfig); err != nil {
+			return errors.Wrap(err, "failed to setup Panther account admin user")
+		}
+	} else {
+		pantherAccountAdminPrivateKey, err := snowAcctSetup.CreatePantherAccountAdminUser(s.cfg.SnowflakeConfig.ExistingAccountConfig)
+		if err != nil {
+			return errors.Wrapf(err, "failed to setup %s user in existing Snowflake account", PantherAccountAdminUserName)
+		}
+
+		// save the Panther account admin RSA key to the config, we'll use it later during setup
+		s.cfg.SnowflakeConfig.ExistingAccountConfig.PantherAccountAdminRSAKey = pantherAccountAdminPrivateKey
 	}
+
+	if err := snowAcctSetup.GrantPantherAccountAdminUserRoles(); err != nil {
+		return errors.Wrapf(err, "failed to configure %s Snowflake roles", PantherAccountAdminUserName)
+	}
+
 	return nil
 }

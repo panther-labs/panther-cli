@@ -12,11 +12,12 @@ const (
 )
 
 type ResolvedSnowflakeAcccount struct {
-	AccountName string          `json:"accountName" validate:"required"`
-	URL         string          `json:"url"         validate:"required,url"`
-	Edition     string          `json:"edition"     validate:"required"`
-	Region      string          `json:"region"      validate:"required"`
-	AdminRSAKey *rsa.PrivateKey `json:"-"           validate:"required"`
+	AccountName   string          `json:"accountName"   validate:"required"`
+	URL           string          `json:"url"           validate:"required,url"`
+	Edition       string          `json:"edition"       validate:"required"`
+	Region        string          `json:"region"        validate:"required"`
+	AdminUsername string          `json:"adminUsername" validate:"required"`
+	AdminRSAKey   *rsa.PrivateKey `json:"-"             validate:"required"`
 
 	// optional fields
 	AccountLocator    string `json:"accountLocator"`

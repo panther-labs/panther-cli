@@ -22,6 +22,7 @@ func GetAWSConfig(ctx context.Context, region, accessKeyID, secretAccessKey, ses
 		config.WithRetryer(func() aws.Retryer {
 			return retry.AddWithMaxAttempts(retry.NewStandard(), maxRetries)
 		}),
+		config.WithRegion(region),
 	)
 	if err != nil {
 		return aws.Config{}, errors.Wrap(err, "failed to load AWS config")
