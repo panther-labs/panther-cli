@@ -17,3 +17,11 @@ func LogDebugln(msg string) {
 		log.Println(msg)
 	}
 }
+
+func LogWarnf(msg string, args ...interface{}) {
+	log.Printf("(WARNING) "+msg, args...)
+}
+
+func LogWarnln(msg string) {
+	log.Println("(WARNING) " + msg)
+}

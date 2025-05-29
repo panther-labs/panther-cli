@@ -53,12 +53,9 @@ func validateEditionsMatch(sl validator.StructLevel) {
 	}
 
 	if cfg.PantherAccountConfig.Edition == "ENTERPRISE" && specifiedEdition != "ENTERPRISE" {
-		sl.ReportError(
+		util.LogWarnf(
+			"PantherEdition is set to ENTERPRISE and SnowflakeEdition is not ENTERPRISE (SnowflakeEdition=%s). Some features may not be available in Panther (e.g. RBAC).",
 			specifiedEdition,
-			"SnowflakeEdition",
-			"SnowflakeEdition",
-			"eqfield",
-			"SnowflakeEdition must be ENTERPRISE if PantherEdition is ENTERPRISE",
 		)
 	}
 }
