@@ -34,8 +34,8 @@ SnowflakeConfig:
 
     AdminUsername: <YOUR SNOWFLAKE ACCOUNT ADMIN USERNAME>
 
-    # This file must be in PEM format.
-    AdminRSAKeyPath: <YOUR ADMIN USER'S RSA PRIVATE KEY FILE PATH>
+    # An environment variable containing the Private Key information in PEM format.
+    AdminRSAKeyEnvVarName: <ENVIRONMENT VARIABLE NAME CONTAINING THE PRIVATE KEY IN PEM FORMAT>
 
     # Path write the PANTHERACCOUNTADMIN user's private key.
     PantherAccountAdminRSAKeyOutputPath: ./keys/panther_account_admin_private_key.pem
