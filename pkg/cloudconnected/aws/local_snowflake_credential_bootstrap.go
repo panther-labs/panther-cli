@@ -3,6 +3,7 @@ package aws
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
@@ -130,6 +131,13 @@ func (l *LocalSnowflakeCredentialBootstrap) ValidateSecret(ctx context.Context) 
 
 	if err := db.Ping(); err != nil {
 		return errors.Wrapf(err, "failed to ping Snowflake host: '%s'", secret.Host)
+	}
+
+	log.Println("Attempting to use each of the expected roles to validate PANTHERACCOUNTADMIN user.")
+
+	roles := []string{"SYSADMIN", "SECURITYADMIN", "ACCOUNTADMIN"}
+	for _, role := range roles {
+		db.QueryRowContext(ctx, fmt.Sprintf("USE ROLE %s", role))
 	}
 
 	log.Printf("Successfully validated credentials with Snowflake host: '%s'", secret.Host)
