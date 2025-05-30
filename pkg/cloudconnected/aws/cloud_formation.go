@@ -125,6 +125,7 @@ func (c *CloudFormation) applyCloudFormationTemplate(
 				types.CapabilityCapabilityNamedIam,
 				types.CapabilityCapabilityAutoExpand,
 			},
+			Parameters: parameters,
 		})
 		if err != nil {
 			// Check if the error is a "No updates are to be performed" error
