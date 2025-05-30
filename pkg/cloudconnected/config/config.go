@@ -20,8 +20,24 @@ var schemaBytes []byte
 
 type Config struct {
 	AWSConfig            AWSConfig            `yaml:"AWSConfig"            validate:"required"`
-	SnowflakeConfig      SnowflakeConfig      `yaml:"SnowflakeConfig"      validate:"required"`
+	SnowflakeConfig      *SnowflakeConfig     `yaml:"SnowflakeConfig"      validate:"required_without=RedshiftConfig,excluded_with=RedshiftConfig"`
+	RedshiftConfig       *RedshiftConfig      `yaml:"RedshiftConfig"       validate:"required_without=SnowflakeConfig,excluded_with=SnowflakeConfig"`
 	PantherAccountConfig PantherAccountConfig `yaml:"PantherAccountConfig" validate:"required"`
+}
+
+func (c *Config) IsSnowflake() bool {
+	return c.SnowflakeConfig != nil
+}
+
+func (c *Config) IsRedshift() bool {
+	return c.RedshiftConfig != nil
+}
+
+func (c *Config) GetDatalakeType() string {
+	if c.IsSnowflake() {
+		return "Snowflake"
+	}
+	return "Redshift"
 }
 
 func NewConfigFromPath(path string) (*Config, error) {
@@ -58,6 +74,12 @@ func NewConfigFromPath(path string) (*Config, error) {
 
 	if err := cfg.validateConfigStruct(); err != nil {
 		return nil, errors.Wrapf(err, "config validation failed")
+	}
+
+	if cfg.IsSnowflake() && cfg.IsRedshift() {
+		log.Fatalf(
+			"This configuration is in an impossible state. Please contact your Panther support team and share your config file.",
+		)
 	}
 
 	log.Printf("Config loaded and validated successfully from '%s'", path)

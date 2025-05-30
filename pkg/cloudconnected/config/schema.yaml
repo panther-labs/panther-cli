@@ -121,10 +121,14 @@ properties:
           - AdminUsername
           - PantherAccountAdminRSAKeyOutputPath
         oneOf:
-          - required:
-              - AdminRSAKeyPath
-          - required:
-              - AdminRSAKeyEnvVarName
+          - required: [AdminRSAKeyPath]
+            properties:
+              AdminRSAKeyPath: true
+              AdminRSAKeyEnvVarName: false
+          - required: [AdminRSAKeyEnvVarName]
+            properties:
+              AdminRSAKeyEnvVarName: true
+              AdminRSAKeyPath: false
         additionalProperties: false
       NewAccountConfig:
         type: object
@@ -185,8 +189,23 @@ properties:
           NewAccountConfig: true # Makes sure this property is defined
     # Prevent both keys from being present, even if one is null/empty
     additionalProperties: false
+  RedshiftConfig:
+    type: object
+    properties:
+      # Add RedshiftConfig properties here when they are defined
+      # This is a placeholder for the Redshift configuration structure
+    required: []
+    additionalProperties: false
 required:
   - AWSConfig
   - PantherAccountConfig
-  - SnowflakeConfig
+oneOf:
+  - required: [SnowflakeConfig]
+    properties:
+      SnowflakeConfig: true
+      RedshiftConfig: false
+  - required: [RedshiftConfig]
+    properties:
+      SnowflakeConfig: false
+      RedshiftConfig: true
 additionalProperties: false

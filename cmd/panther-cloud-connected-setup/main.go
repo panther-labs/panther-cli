@@ -48,39 +48,6 @@ func main() {
 	currentState := stateManager.GetState()
 	util.LogDebugln(pp.Sprintln(currentState))
 
-	var resolvedSnowflakeAccount *snowflake.ResolvedSnowflakeAcccount
-	if currentState.SnowflakeAccountName == "" {
-		// Setup Snowflake if not already done
-		snowflakeSetup := snowflake.NewSnowflakeSetup(ctx, cfg)
-		resolvedSnowflakeAccount, err = snowflakeSetup.CreateOrResolveAccount()
-		if err != nil {
-			log.Fatalf("failed to create or resolve Snowflake account: %v\n", err)
-		}
-
-		if err := stateManager.UpdateSnowflakeState(resolvedSnowflakeAccount, false); err != nil {
-			log.Fatalf("failed to update Snowflake state: %v\n", err)
-		}
-		log.Printf("Successfully resolved Snowflake account: %s\n", resolvedSnowflakeAccount.URL)
-
-		if err := snowflakeSetup.SetupAccount(resolvedSnowflakeAccount); err != nil {
-			log.Fatalf("failed to setup Snowflake account: %v\n", err)
-		}
-
-		if err := stateManager.UpdateSnowflakeState(resolvedSnowflakeAccount, true); err != nil {
-			log.Fatalf("failed to update Snowflake state: %v\n", err)
-		}
-	} else {
-		log.Printf("Using existing Snowflake account details: %s\n", currentState.SnowflakeAccountURL)
-
-		resolvedSnowflakeAccount = currentState.RenderNonSensitiveSnowflakeAccountDetails()
-
-		privateKey, err := cfg.SnowflakeConfig.GetPantherAccountAdminRSAKey()
-		if err != nil {
-			log.Fatalf("failed to get PANTHERACCOUNTADMIN RSA key: %s\n", err.Error())
-		}
-		resolvedSnowflakeAccount.AdminRSAKey = privateKey
-	}
-
 	// Setup AWS if not already done
 	if !currentState.AWSPantherDeploymentRoleDeployed || !currentState.AWSReadinessBootstrapToolsDeployed {
 		if err := setupAWS(ctx, cfg); err != nil {
@@ -96,36 +63,24 @@ func main() {
 		log.Println("Using existing AWS setup")
 	}
 
-	// Run readiness check if not already done
-	if !currentState.AWSReadinessCheckSucceeded {
-		results, err := runReadinessCheck(ctx, cfg)
-		if err != nil {
-			log.Fatalf("failed to run readiness check: %v\n", err)
-		}
-		if err := stateManager.UpdateAWSReadinessState(results); err != nil {
-			log.Fatalf("failed to update AWS readiness state: %v\n", err)
-		}
-		if !results.HasPassed() {
-			log.Fatalf("AWS readiness check failed - ensure S3 Select is enabled and all deployment role checks pass")
-		}
-	} else {
-		log.Println("Skipping readiness check - already completed")
+	if err := setupDatalake(ctx, cfg, stateManager); err != nil {
+		log.Fatalf("failed to setup datalake (%s): %v\n", cfg.GetDatalakeType(), err)
 	}
 
-	// Run Snowflake credential bootstrap if not already done
-	if !currentState.AWSSnowflakeBootstrapSucceeded {
-		credsARN, err := runSnowflakeCredentialBootstrap(ctx, cfg, resolvedSnowflakeAccount)
-		if err != nil {
-			log.Fatalf("failed to run Snowflake credential bootstrap: %v\n", err)
-		}
+	// We allow users to skip the readiness check, whether it ran successfully or not.
+	if !a.SkipAWSReadinessCheck {
+		// Run readiness check if not already done
+		if !currentState.AWSReadinessCheckSucceeded {
+			err := runReadinessCheck(ctx, cfg, stateManager)
+			if err != nil {
+				log.Fatalf("failed to run readiness check: %v\n", err)
+			}
 
-		// Update only the Snowflake bootstrap state
-		if err := stateManager.UpdateAWSSnowflakeBootstrapState(true, credsARN); err != nil {
-			log.Fatalf("failed to update AWS Snowflake bootstrap state: %v\n", err)
+		} else {
+			log.Println("Skipping readiness check - already completed")
 		}
-		log.Printf("Snowflake credential bootstrap completed successfully. Credentials ARN: %s\n", credsARN)
 	} else {
-		log.Println("Skipping Snowflake credential bootstrap - already completed")
+		log.Println("Skipping readiness check - --skip-aws-readiness-check specified")
 	}
 
 	// Setup certificates if not already done or check issuance status
@@ -387,15 +342,15 @@ func setupAWS(ctx context.Context, cfg *config.Config) error {
 	return nil
 }
 
-func runReadinessCheck(ctx context.Context, cfg *config.Config) (state.ReadinessCheckResults, error) {
+func runReadinessCheck(ctx context.Context, cfg *config.Config, stateManager *state.Manager) error {
 	readinessCheck, err := panther.NewReadinessCheck(ctx, cfg.AWSConfig)
 	if err != nil {
-		return state.ReadinessCheckResults{}, errors.Wrap(err, "failed to initialize readiness check")
+		return errors.Wrap(err, "failed to initialize readiness check")
 	}
 
 	result, err := readinessCheck.Exec()
 	if err != nil {
-		return state.ReadinessCheckResults{}, errors.Wrap(err, "failed to execute readiness check")
+		return errors.Wrap(err, "failed to execute readiness check")
 	}
 
 	log.Println(pp.Sprintln(result))
@@ -412,10 +367,22 @@ func runReadinessCheck(ctx context.Context, cfg *config.Config) (state.Readiness
 		}
 	}
 
-	return state.ReadinessCheckResults{
+	results := state.ReadinessCheckResults{
 		DeploymentRoleReadinessResults: deploymentRoleResults,
 		S3SelectEnabled:                s3Enabled,
-	}, nil
+	}
+
+	if err := stateManager.UpdateAWSReadinessState(results); err != nil {
+		log.Fatalf("failed to update AWS readiness state: %v\n", err)
+	}
+
+	if !results.HasPassed() {
+		log.Fatalf(
+			"AWS readiness check failed - ensure S3 Select is enabled and all deployment role checks pass",
+		)
+	}
+
+	return nil
 }
 
 func runSnowflakeCredentialBootstrap(
@@ -438,4 +405,64 @@ func runSnowflakeCredentialBootstrap(
 	}
 
 	return credsARN, nil
+}
+
+func setupDatalake(ctx context.Context, cfg *config.Config, stateManager *state.Manager) (err error) {
+	currentState := stateManager.GetState()
+
+	if cfg.IsSnowflake() {
+		log.Println("Snowflake deployment specified.")
+		var resolvedSnowflakeAccount *snowflake.ResolvedSnowflakeAcccount
+		if currentState.SnowflakeAccountName == "" {
+			// Setup Snowflake if not already done
+			snowflakeSetup := snowflake.NewSnowflakeSetup(ctx, cfg)
+			resolvedSnowflakeAccount, err = snowflakeSetup.CreateOrResolveAccount()
+			if err != nil {
+				log.Fatalf("failed to create or resolve Snowflake account: %v\n", err)
+			}
+
+			if err := stateManager.UpdateSnowflakeState(resolvedSnowflakeAccount, false); err != nil {
+				log.Fatalf("failed to update Snowflake state: %v\n", err)
+			}
+			log.Printf("Successfully resolved Snowflake account: %s\n", resolvedSnowflakeAccount.URL)
+
+			if err := snowflakeSetup.SetupAccount(resolvedSnowflakeAccount); err != nil {
+				log.Fatalf("failed to setup Snowflake account: %v\n", err)
+			}
+
+			if err := stateManager.UpdateSnowflakeState(resolvedSnowflakeAccount, true); err != nil {
+				log.Fatalf("failed to update Snowflake state: %v\n", err)
+			}
+		} else {
+			log.Printf("Using existing Snowflake account details: %s\n", currentState.SnowflakeAccountURL)
+
+			resolvedSnowflakeAccount = currentState.RenderNonSensitiveSnowflakeAccountDetails()
+
+			privateKey, err := cfg.SnowflakeConfig.GetPantherAccountAdminRSAKey()
+			if err != nil {
+				log.Fatalf("failed to get PANTHERACCOUNTADMIN RSA key: %s\n", err.Error())
+			}
+			resolvedSnowflakeAccount.AdminRSAKey = privateKey
+		}
+
+		// Run Snowflake credential bootstrap if not already done
+		if !currentState.AWSSnowflakeBootstrapSucceeded {
+			credsARN, err := runSnowflakeCredentialBootstrap(ctx, cfg, resolvedSnowflakeAccount)
+			if err != nil {
+				log.Fatalf("failed to run Snowflake credential bootstrap: %v\n", err)
+			}
+
+			// Update only the Snowflake bootstrap state
+			if err := stateManager.UpdateAWSSnowflakeBootstrapState(true, credsARN); err != nil {
+				log.Fatalf("failed to update AWS Snowflake bootstrap state: %v\n", err)
+			}
+			log.Printf("Snowflake credential bootstrap completed successfully. Credentials ARN: %s\n", credsARN)
+		} else {
+			log.Println("Skipping Snowflake credential bootstrap - already completed")
+		}
+	} else if cfg.IsRedshift() {
+		log.Println("Redshift deployment specified.")
+	}
+
+	return nil
 }
