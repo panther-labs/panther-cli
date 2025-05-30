@@ -7,10 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/panther-labs/panther-cli/pkg/cloudconnected/aws"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
-	"github.com/panther-labs/panther-cli/pkg/cloudconnected/panther"
-	"github.com/panther-labs/panther-cli/pkg/cloudconnected/snowflake"
 	"github.com/panther-labs/panther-cli/pkg/state"
 	"github.com/panther-labs/panther-cli/pkg/util"
 	"github.com/pkg/errors"
@@ -48,50 +45,34 @@ func main() {
 	currentState := stateManager.GetState()
 	util.LogDebugln(pp.Sprintln(currentState))
 
-	// Setup AWS if not already done
-	if !currentState.AWSPantherDeploymentRoleDeployed || !currentState.AWSReadinessBootstrapToolsDeployed {
-		if err := setupAWS(ctx, cfg); err != nil {
-			log.Fatalf("failed to setup AWS: %v\n", err)
-		}
-		if err := stateManager.UpdateAWSDeploymentState(true); err != nil {
-			log.Fatalf("failed to update AWS deployment state: %v\n", err)
-		}
-		if err := stateManager.UpdateAWSBootstrapState(true); err != nil {
-			log.Fatalf("failed to update AWS bootstrap state: %v\n", err)
-		}
-	} else {
-		log.Println("Using existing AWS setup")
+	// Setup AWS if not already done. Error handling is done in the function.
+	if err := setupAWS(ctx, cfg, stateManager); err != nil {
+		log.Fatalf("failed to setup AWS: %v\n", err)
 	}
 
+	// Setup the Datalake if not already done. Error handling is done in the function.
 	if err := setupDatalake(ctx, cfg, stateManager); err != nil {
-		log.Fatalf("failed to setup datalake (%s): %v\n", cfg.GetDatalakeType(), err)
+		log.Fatalf("failed to setup datalake: %v\n", err)
 	}
 
 	// We allow users to skip the readiness check, whether it ran successfully or not.
 	if !a.SkipAWSReadinessCheck {
 		// Run readiness check if not already done
-		if !currentState.AWSReadinessCheckSucceeded {
-			err := runReadinessCheck(ctx, cfg, stateManager)
-			if err != nil {
-				log.Fatalf("failed to run readiness check: %v\n", err)
-			}
-
-		} else {
-			log.Println("Skipping readiness check - already completed")
+		if err := runReadinessCheck(ctx, cfg, stateManager); err != nil {
+			log.Fatalf("failed to run readiness check: %v\n", err)
 		}
 	} else {
 		log.Println("Skipping readiness check - --skip-aws-readiness-check specified")
 	}
 
+	if err := setupCertificates(ctx, cfg, stateManager); err != nil {
+		log.Fatalf("failed to setup certificates: %v\n", err)
+	}
+
 	// Setup certificates if not already done or check issuance status
-	if !currentState.AWSCertificatesRequested {
-		if err := setupCertificates(ctx, cfg, stateManager); err != nil {
-			log.Fatalf("failed to setup certificates: %v\n", err)
-		}
-	} else {
-		if err := checkCertificateStatus(ctx, cfg, stateManager); err != nil {
-			log.Fatalf("failed to check certificate status: %v\n", err)
-		}
+
+	if err := checkCertificateStatus(ctx, cfg, stateManager); err != nil {
+		log.Fatalf("failed to check certificate status: %v\n", err)
 	}
 
 	// show this run's results
@@ -188,281 +169,4 @@ func showLastRun(configFile string) {
 		log.Fatalf("Failed to create JSON support file: %v", err)
 	}
 	util.LogDebugln(jsonStr)
-}
-
-func setupCertificates(ctx context.Context, cfg *config.Config, stateManager *state.Manager) error {
-	certHelper, err := aws.NewCertificateRegistrationHelper(ctx, cfg)
-	if err != nil {
-		return errors.Wrap(err, "failed to initialize certificate registration helper")
-	}
-
-	// Register panther subdomain certificate
-	pantherResult, err := certHelper.RegisterPantherSubdomainCertificate()
-	if err != nil {
-		return errors.Wrap(err, "failed to register panther subdomain certificate")
-	}
-	log.Printf("Registered panther subdomain certificate:\n%s\n", pp.Sprintln(pantherResult))
-	if err := stateManager.UpdateCertificateState("panther", pantherResult, false); err != nil {
-		return errors.Wrap(err, "failed to update panther certificate state")
-	}
-
-	// Register wildcard certificate
-	wildcardResult, err := certHelper.RegisterWildcardSubdomainCertificate()
-	if err != nil {
-		return errors.Wrap(err, "failed to register wildcard certificate")
-	}
-	log.Printf("Registered wildcard certificate:\n%s\n", pp.Sprintln(wildcardResult))
-	if err := stateManager.UpdateCertificateState("wildcard", wildcardResult, false); err != nil {
-		return errors.Wrap(err, "failed to update wildcard certificate state")
-	}
-
-	// Print DNS validation instructions
-	printDNSValidationInstructions(stateManager.GetState().AWSCertificatesResults)
-
-	return nil
-}
-
-func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManager *state.Manager) error {
-	certHelper, err := aws.NewCertificateRegistrationHelper(ctx, cfg)
-	if err != nil {
-		return errors.Wrap(err, "failed to initialize certificate registration helper")
-	}
-
-	state := stateManager.GetState()
-	certs := state.AWSCertificatesResults
-
-	// Check panther subdomain certificate
-	if certs.PantherSubdomain != nil && !certs.PantherSubdomain.IsIssued {
-		issued, err := certHelper.IsCertificateIssued(certs.PantherSubdomain.CertificateArn, false)
-		if err != nil {
-			return errors.Wrap(err, "failed to check panther subdomain certificate status")
-		}
-		if issued {
-			if err := stateManager.UpdateCertificateState(
-				"panther",
-				aws.CertificateRegistrationResult{
-					CertificateArn: certs.PantherSubdomain.CertificateArn,
-					ValidationDetails: aws.CertificateValidationDetails{
-						DomainName:  certs.PantherSubdomain.ValidationDetails.DomainName,
-						RecordName:  certs.PantherSubdomain.ValidationDetails.RecordName,
-						RecordValue: certs.PantherSubdomain.ValidationDetails.RecordValue,
-						RecordType:  certs.PantherSubdomain.ValidationDetails.RecordType,
-					},
-				},
-				true,
-			); err != nil {
-				return errors.Wrap(err, "failed to update panther certificate state")
-			}
-			log.Println("Panther subdomain certificate has been issued")
-		}
-	}
-
-	// Check wildcard certificate
-	if certs.WildcardSubdomain != nil && !certs.WildcardSubdomain.IsIssued {
-		issued, err := certHelper.IsCertificateIssued(certs.WildcardSubdomain.CertificateArn, true)
-		if err != nil {
-			return errors.Wrap(err, "failed to check wildcard certificate status")
-		}
-		if issued {
-			if err := stateManager.UpdateCertificateState(
-				"wildcard",
-				aws.CertificateRegistrationResult{
-					CertificateArn: certs.WildcardSubdomain.CertificateArn,
-					ValidationDetails: aws.CertificateValidationDetails{
-						DomainName:  certs.WildcardSubdomain.ValidationDetails.DomainName,
-						RecordName:  certs.WildcardSubdomain.ValidationDetails.RecordName,
-						RecordValue: certs.WildcardSubdomain.ValidationDetails.RecordValue,
-						RecordType:  certs.WildcardSubdomain.ValidationDetails.RecordType,
-					},
-				},
-				true,
-			); err != nil {
-				return errors.Wrap(err, "failed to update wildcard certificate state")
-			}
-			log.Println("Wildcard certificate has been issued")
-		}
-	}
-
-	// If any certificates are not issued, print the DNS validation instructions
-	if (!certs.PantherSubdomain.IsIssued && certs.PantherSubdomain != nil) ||
-		(!certs.WildcardSubdomain.IsIssued && certs.WildcardSubdomain != nil) {
-		log.Println(
-			"Some certificates are still pending validation. Please ensure you have created the following DNS records:",
-		)
-		printDNSValidationInstructions(certs)
-	}
-
-	return nil
-}
-
-func printDNSValidationInstructions(certs state.CertificateResults) {
-	if certs.PantherSubdomain != nil {
-		log.Printf(
-			"For Panther Subdomain (%s), create a DNS record with the following information:\n",
-			certs.PantherSubdomain.ValidationDetails.DomainName,
-		)
-		log.Printf("  Record Type:  %s\n", certs.PantherSubdomain.ValidationDetails.RecordType)
-		log.Printf("  Record Name:  %s\n", certs.PantherSubdomain.ValidationDetails.RecordName)
-		log.Printf("  Record Value: %s\n", certs.PantherSubdomain.ValidationDetails.RecordValue)
-	}
-
-	if certs.WildcardSubdomain != nil {
-		log.Printf(
-			"For Wildcard Certificate (%s), create a DNS record with the following information:\n",
-			certs.WildcardSubdomain.ValidationDetails.DomainName,
-		)
-		log.Printf("  Record Type:  %s\n", certs.WildcardSubdomain.ValidationDetails.RecordType)
-		log.Printf("  Record Name:  %s\n", certs.WildcardSubdomain.ValidationDetails.RecordName)
-		log.Printf("  Record Value: %s\n", certs.WildcardSubdomain.ValidationDetails.RecordValue)
-	}
-}
-
-func setupAWS(ctx context.Context, cfg *config.Config) error {
-	awsSetup, err := aws.NewCloudFormation(ctx, cfg.AWSConfig)
-	if err != nil {
-		return errors.Wrap(err, "failed to initialize AWS CloudFormation")
-	}
-
-	if err := awsSetup.ApplyDeploymentRole(); err != nil {
-		return errors.Wrapf(
-			err,
-			"failed to create deployment role stack (%s)",
-			cfg.AWSConfig.CloudFormationConfig.DeploymentRoleName,
-		)
-	}
-
-	if err := awsSetup.ApplyPreDeploymentTools(); err != nil {
-		return errors.Wrapf(
-			err,
-			"failed to apply pre-deployment tools stack (%s)",
-			cfg.AWSConfig.CloudFormationConfig.PreDeploymentToolsStackName,
-		)
-	}
-
-	return nil
-}
-
-func runReadinessCheck(ctx context.Context, cfg *config.Config, stateManager *state.Manager) error {
-	readinessCheck, err := panther.NewReadinessCheck(ctx, cfg.AWSConfig)
-	if err != nil {
-		return errors.Wrap(err, "failed to initialize readiness check")
-	}
-
-	result, err := readinessCheck.Exec()
-	if err != nil {
-		return errors.Wrap(err, "failed to execute readiness check")
-	}
-
-	log.Println(pp.Sprintln(result))
-
-	// Convert the map result to ReadinessCheckResults
-	deploymentResults, _ := result["deployment_role_readiness_results"].([]interface{})
-	s3Enabled, _ := result["s3_select_enabled"].(bool)
-
-	// Convert []interface{} to []map[string]interface{}
-	var deploymentRoleResults []map[string]interface{}
-	for _, item := range deploymentResults {
-		if m, ok := item.(map[string]interface{}); ok {
-			deploymentRoleResults = append(deploymentRoleResults, m)
-		}
-	}
-
-	results := state.ReadinessCheckResults{
-		DeploymentRoleReadinessResults: deploymentRoleResults,
-		S3SelectEnabled:                s3Enabled,
-	}
-
-	if err := stateManager.UpdateAWSReadinessState(results); err != nil {
-		log.Fatalf("failed to update AWS readiness state: %v\n", err)
-	}
-
-	if !results.HasPassed() {
-		log.Fatalf(
-			"AWS readiness check failed - ensure S3 Select is enabled and all deployment role checks pass",
-		)
-	}
-
-	return nil
-}
-
-func runSnowflakeCredentialBootstrap(
-	ctx context.Context,
-	cfg *config.Config,
-	resolvedSnowflakeAcct *snowflake.ResolvedSnowflakeAcccount,
-) (string, error) {
-	bootstrap, err := aws.NewLocalSnowflakeCredentialBootstrap(ctx, cfg.AWSConfig)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to initialize Snowflake credential bootstrap")
-	}
-
-	credsARN, err := bootstrap.WriteSecret(ctx, resolvedSnowflakeAcct)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to execute Snowflake credential bootstrap")
-	}
-
-	if err := bootstrap.ValidateSecret(ctx); err != nil {
-		return "", errors.Wrap(err, "failed to validate Snowflake credentials")
-	}
-
-	return credsARN, nil
-}
-
-func setupDatalake(ctx context.Context, cfg *config.Config, stateManager *state.Manager) (err error) {
-	currentState := stateManager.GetState()
-
-	if cfg.IsSnowflake() {
-		log.Println("Snowflake deployment specified.")
-		var resolvedSnowflakeAccount *snowflake.ResolvedSnowflakeAcccount
-		if currentState.SnowflakeAccountName == "" {
-			// Setup Snowflake if not already done
-			snowflakeSetup := snowflake.NewSnowflakeSetup(ctx, cfg)
-			resolvedSnowflakeAccount, err = snowflakeSetup.CreateOrResolveAccount()
-			if err != nil {
-				log.Fatalf("failed to create or resolve Snowflake account: %v\n", err)
-			}
-
-			if err := stateManager.UpdateSnowflakeState(resolvedSnowflakeAccount, false); err != nil {
-				log.Fatalf("failed to update Snowflake state: %v\n", err)
-			}
-			log.Printf("Successfully resolved Snowflake account: %s\n", resolvedSnowflakeAccount.URL)
-
-			if err := snowflakeSetup.SetupAccount(resolvedSnowflakeAccount); err != nil {
-				log.Fatalf("failed to setup Snowflake account: %v\n", err)
-			}
-
-			if err := stateManager.UpdateSnowflakeState(resolvedSnowflakeAccount, true); err != nil {
-				log.Fatalf("failed to update Snowflake state: %v\n", err)
-			}
-		} else {
-			log.Printf("Using existing Snowflake account details: %s\n", currentState.SnowflakeAccountURL)
-
-			resolvedSnowflakeAccount = currentState.RenderNonSensitiveSnowflakeAccountDetails()
-
-			privateKey, err := cfg.SnowflakeConfig.GetPantherAccountAdminRSAKey()
-			if err != nil {
-				log.Fatalf("failed to get PANTHERACCOUNTADMIN RSA key: %s\n", err.Error())
-			}
-			resolvedSnowflakeAccount.AdminRSAKey = privateKey
-		}
-
-		// Run Snowflake credential bootstrap if not already done
-		if !currentState.AWSSnowflakeBootstrapSucceeded {
-			credsARN, err := runSnowflakeCredentialBootstrap(ctx, cfg, resolvedSnowflakeAccount)
-			if err != nil {
-				log.Fatalf("failed to run Snowflake credential bootstrap: %v\n", err)
-			}
-
-			// Update only the Snowflake bootstrap state
-			if err := stateManager.UpdateAWSSnowflakeBootstrapState(true, credsARN); err != nil {
-				log.Fatalf("failed to update AWS Snowflake bootstrap state: %v\n", err)
-			}
-			log.Printf("Snowflake credential bootstrap completed successfully. Credentials ARN: %s\n", credsARN)
-		} else {
-			log.Println("Skipping Snowflake credential bootstrap - already completed")
-		}
-	} else if cfg.IsRedshift() {
-		log.Println("Redshift deployment specified.")
-	}
-
-	return nil
 }
