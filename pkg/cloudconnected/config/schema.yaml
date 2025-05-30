@@ -191,9 +191,7 @@ properties:
     additionalProperties: false
   RedshiftConfig:
     type: object
-    properties:
-      # Add RedshiftConfig properties here when they are defined
-      # This is a placeholder for the Redshift configuration structure
+    properties: {} # Empty object instead of undefined
     required: []
     additionalProperties: false
 required:
