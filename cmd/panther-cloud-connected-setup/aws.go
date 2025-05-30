@@ -154,7 +154,7 @@ func setupAWS(ctx context.Context, cfg *config.Config, stateManager *state.Manag
 		if err := awsSetup.ApplyDeploymentRole(); err != nil {
 			return errors.Wrapf(
 				err,
-				"failed to setup AWS - failed to create deployment role stack (%s)",
+				"failed to create deployment role stack (%s)",
 				cfg.AWSConfig.CloudFormationConfig.DeploymentRoleName,
 			)
 		}
@@ -166,7 +166,7 @@ func setupAWS(ctx context.Context, cfg *config.Config, stateManager *state.Manag
 		if err := awsSetup.ApplyPreDeploymentTools(); err != nil {
 			return errors.Wrapf(
 				err,
-				"failed to setup AWS - failed to apply pre-deployment tools stack (%s)",
+				"failed to apply pre-deployment tools stack (%s)",
 				cfg.AWSConfig.CloudFormationConfig.PreDeploymentToolsStackName,
 			)
 		}

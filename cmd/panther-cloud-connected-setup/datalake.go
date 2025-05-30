@@ -68,7 +68,7 @@ func setupDatalake(ctx context.Context, cfg *config.Config, stateManager *state.
 		log.Println("Redshift deployment specified.")
 	}
 
-	log.Println("Datalake setup completed successfully.")
+	log.Printf("Datalake(%s) setup completed successfully.", cfg.GetDatalakeType())
 
 	return nil
 }
