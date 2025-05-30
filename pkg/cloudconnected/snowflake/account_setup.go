@@ -218,22 +218,9 @@ func (a *AccountSetup) CreatePantherAccountAdminUser(
 	}
 
 	// grant the necessary roles to PANTHERACCOUNTADMIN
-	const grantQuery = `GRANT ROLE SYSADMIN, SECURITYADMIN, ACCOUNTADMIN TO USER %s;`
-
-	grantRolesRow := a.conn.QueryRowContext(
-		a.ctx,
-		fmt.Sprintf(grantQuery, PantherAccountAdminUserName),
-	)
-
-	if err := grantRolesRow.Scan(&result); err != nil {
-		return nil, errors.Wrapf(err, "error scanning result from GRANT ROLE query")
+	if err := a.GrantPantherAccountAdminUserRoles(); err != nil {
+		return nil, errors.Wrap(err, "failed to grant roles to PANTHERACCOUNTADMIN user")
 	}
-
-	log.Printf(
-		"Granted roles SYSADMIN, SECURITYADMIN, ACCOUNTADMIN to '%s' user: %+v",
-		PantherAccountAdminUserName,
-		result,
-	)
 
 	return privateKey, nil
 }
