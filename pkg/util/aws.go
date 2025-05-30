@@ -15,9 +15,7 @@ const maxRetries = 5
 
 //nolint:forbidigo
 func GetAWSConfig(ctx context.Context, region, accessKeyID, secretAccessKey, sessionToken string) (aws.Config, error) {
-	log.Println("Attempting to load AWS configuration from environment first.")
-
-	if accessKeyID == "UNSET" && secretAccessKey == "UNSET" && sessionToken == "UNSET" {
+	if accessKeyID == "UNSET" && secretAccessKey == "UNSET" {
 		log.Println("No credentials provided, attempting to load AWS config from environment.")
 		defaultRetryer := config.WithRetryer(func() aws.Retryer {
 			return retry.AddWithMaxAttempts(retry.NewStandard(), maxRetries)
@@ -31,7 +29,7 @@ func GetAWSConfig(ctx context.Context, region, accessKeyID, secretAccessKey, ses
 		return awsCfg, nil
 	}
 
-	log.Println("Attempting to load AWS configuration from credentials.")
+	log.Println("Attempting to load AWS configuration from specified credentials.")
 	awsCfg, err := config.LoadDefaultConfig(
 		ctx,
 		config.WithCredentialsProvider(

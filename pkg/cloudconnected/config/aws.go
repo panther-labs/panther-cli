@@ -13,7 +13,7 @@ import (
 type AWSConfig struct {
 	AccessKeyID     string `yaml:"AccessKeyID"     default:"UNSET"`
 	SecretAccessKey string `yaml:"SecretAccessKey" default:"UNSET"`
-	SessionToken    string `yaml:"SessionToken"    default:"UNSET"`
+	SessionToken    string `yaml:"SessionToken"`
 	Region          string `yaml:"-"                               validate:"required,validPantherRegion"`
 
 	CloudFormationConfig           CloudFormationConfig           `yaml:"CloudFormationConfig"           validate:"required"`
