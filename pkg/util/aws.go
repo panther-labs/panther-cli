@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"log"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
@@ -14,6 +15,23 @@ const maxRetries = 5
 
 //nolint:forbidigo
 func GetAWSConfig(ctx context.Context, region, accessKeyID, secretAccessKey, sessionToken string) (aws.Config, error) {
+	log.Println("Attempting to load AWS configuration from environment first.")
+
+	if accessKeyID == "UNSET" && secretAccessKey == "UNSET" && sessionToken == "UNSET" {
+		log.Println("No credentials provided, attempting to load AWS config from environment.")
+		defaultRetryer := config.WithRetryer(func() aws.Retryer {
+			return retry.AddWithMaxAttempts(retry.NewStandard(), maxRetries)
+		})
+		awsCfg, err := config.LoadDefaultConfig(ctx, defaultRetryer, config.WithRegion(region))
+		if err != nil {
+			LogWarnf("Failed to load AWS config from environment: %v", err)
+			LogWarnln("Attempting to load AWS configuration from credentials.")
+		}
+
+		return awsCfg, nil
+	}
+
+	log.Println("Attempting to load AWS configuration from credentials.")
 	awsCfg, err := config.LoadDefaultConfig(
 		ctx,
 		config.WithCredentialsProvider(
