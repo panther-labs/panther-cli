@@ -37,27 +37,29 @@ func validateAdminName(fl validator.FieldLevel) bool {
 func validateEditionsMatch(sl validator.StructLevel) {
 	cfg := sl.Current().Interface().(Config)
 
-	var specifiedEdition string
-	if cfg.SnowflakeConfig.NewAccountConfig != nil {
-		specifiedEdition = cfg.SnowflakeConfig.NewAccountConfig.Edition
-	} else if cfg.SnowflakeConfig.ExistingAccountConfig != nil {
-		specifiedEdition = cfg.SnowflakeConfig.ExistingAccountConfig.Edition
-	} else {
-		sl.ReportError(
-			cfg.PantherAccountConfig.Edition,
-			"PantherEdition",
-			"PantherEdition",
-			"eqfield",
-			"No Edition appears to have been specified",
-		)
-	}
+	if cfg.IsSnowflake() {
+		var specifiedEdition string
+		if cfg.SnowflakeConfig.NewAccountConfig != nil {
+			specifiedEdition = cfg.SnowflakeConfig.NewAccountConfig.Edition
+		} else if cfg.SnowflakeConfig.ExistingAccountConfig != nil {
+			specifiedEdition = cfg.SnowflakeConfig.ExistingAccountConfig.Edition
+		} else {
+			sl.ReportError(
+				cfg.PantherAccountConfig.Edition,
+				"PantherEdition",
+				"PantherEdition",
+				"eqfield",
+				"No Edition appears to have been specified",
+			)
+		}
 
-	if cfg.PantherAccountConfig.Edition == "ENTERPRISE" &&
-		(specifiedEdition != "ENTERPRISE" && specifiedEdition != "BUSINESS_CRITICAL") {
-		util.LogWarnf(
-			"PantherEdition is set to ENTERPRISE and SnowflakeEdition is not ENTERPRISE (SnowflakeEdition=%s). Some features may not be available in Panther (e.g. RBAC).",
-			specifiedEdition,
-		)
+		if cfg.PantherAccountConfig.Edition == "ENTERPRISE" &&
+			(specifiedEdition != "ENTERPRISE" && specifiedEdition != "BUSINESS_CRITICAL") {
+			util.LogWarnf(
+				"PantherEdition is set to ENTERPRISE and SnowflakeEdition is not ENTERPRISE (SnowflakeEdition=%s). Some features may not be available in Panther (e.g. RBAC).",
+				specifiedEdition,
+			)
+		}
 	}
 }
 

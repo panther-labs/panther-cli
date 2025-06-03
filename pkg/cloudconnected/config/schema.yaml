@@ -195,13 +195,4 @@ properties:
 required:
   - AWSConfig
   - PantherAccountConfig
-oneOf:
-  - required: [SnowflakeConfig]
-    properties:
-      SnowflakeConfig: true
-      RedshiftConfig: false
-  - required: [RedshiftConfig]
-    properties:
-      SnowflakeConfig: false
-      RedshiftConfig: true
 additionalProperties: false
