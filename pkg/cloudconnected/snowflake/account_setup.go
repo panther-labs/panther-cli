@@ -8,7 +8,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/cenkalti/backoff"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/k0kubun/pp/v3"
 	"github.com/pkg/errors"
 
