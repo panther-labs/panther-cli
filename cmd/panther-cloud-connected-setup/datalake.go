@@ -17,9 +17,10 @@ func setupDatalake(ctx context.Context, cfg *config.Config, stateManager *state.
 	if cfg.IsSnowflake() {
 		log.Println("Snowflake deployment specified.")
 
+		snowflakeSetup := snowflake.NewSnowflakeSetup(ctx, cfg)
+
 		if currentState.SnowflakeAccountName == "" {
 			// Setup Snowflake if not already done
-			snowflakeSetup := snowflake.NewSnowflakeSetup(ctx, cfg)
 			resolvedSnowflakeAccount, err := snowflakeSetup.CreateOrResolveAccount()
 			if err != nil {
 				return errors.Wrap(err, "failed to create or resolve Snowflake account")
@@ -30,15 +31,36 @@ func setupDatalake(ctx context.Context, cfg *config.Config, stateManager *state.
 			}
 			log.Printf("Successfully resolved Snowflake account: %s\n", resolvedSnowflakeAccount.URL)
 
+		} else {
+			log.Printf("Using existing Snowflake account details: %s\n", currentState.SnowflakeAccountURL)
+		}
+
+		currentState := stateManager.GetState()
+
+		if !currentState.SnowflakeAccountSetup {
+			resolvedSnowflakeAccount := currentState.RenderNonSensitiveSnowflakeAccountDetails()
+
+			if cfg.SnowflakeConfig.ConfigType == config.SnowflakeConfigTypeNewAccount {
+				privKey, err := cfg.SnowflakeConfig.GetPantherAccountAdminRSAKey()
+				if err != nil {
+					return errors.Wrap(err, "failed to get PANTHERACCOUNTADMIN RSA key")
+				}
+				resolvedSnowflakeAccount.AdminRSAKey = privKey
+			} else {
+				privKey, err := cfg.SnowflakeConfig.ExistingAccountConfig.LoadAccountAdminRSAKey()
+				if err != nil {
+					return errors.Wrap(err, "failed to load Panther account admin RSA key")
+				}
+				resolvedSnowflakeAccount.AdminRSAKey = privKey
+			}
+
 			if err := snowflakeSetup.SetupAccount(resolvedSnowflakeAccount); err != nil {
-				return errors.Wrap(err, "failed to setup Snowflake account")
+				return err
 			}
 
 			if err := stateManager.UpdateSnowflakeState(resolvedSnowflakeAccount, true); err != nil {
 				return errors.Wrap(err, "failed to update Snowflake state")
 			}
-		} else {
-			log.Printf("Using existing Snowflake account details: %s\n", currentState.SnowflakeAccountURL)
 		}
 
 		resolvedSnowflakeAccount := currentState.RenderNonSensitiveSnowflakeAccountDetails()

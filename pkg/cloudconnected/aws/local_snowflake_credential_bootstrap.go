@@ -110,13 +110,20 @@ func (l *LocalSnowflakeCredentialBootstrap) ValidateSecret(ctx context.Context) 
 		return errors.Wrap(err, "failed to parse private key")
 	}
 
-	dsn := util.FormatSnowflakeDSNFromRSAKey(
-		"", // we don't need to specify region here
+	config, err := util.NewSnowflakeConnectionConfigWithAccountName(
 		secret.Account,
 		secret.Username,
-		"ACCOUNTADMIN", // the snowflake role, not the user PANTHERACCOUNTADMIN
+		util.SnowflakeRoleAccountAdmin, // the snowflake role, not the user PANTHERACCOUNTADMIN
 		asRsaPrivateKey,
 	)
+	if err != nil {
+		return errors.Wrap(err, "failed to create Snowflake connection config")
+	}
+
+	dsn, err := config.GetDSN()
+	if err != nil {
+		return err
+	}
 
 	db, err := snowflake.OpenSnowflakeAccountConnection(ctx, dsn)
 	if err != nil {

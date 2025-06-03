@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
+	"github.com/panther-labs/panther-cli/pkg/util"
 	"github.com/pkg/errors"
 )
 
@@ -41,6 +42,8 @@ func (s *SnowflakeSetup) CreateOrResolveAccount() (resolvedAccount *ResolvedSnow
 			AdminUsername: s.cfg.SnowflakeConfig.ExistingAccountConfig.AdminUsername,
 			AdminRSAKey:   privateKey,
 		}
+
+		util.LogDebugf("Resolved Snowflake account: %+v\n", resolvedAccount)
 	}
 
 	if err := validate.Struct(resolvedAccount); err != nil {
@@ -51,11 +54,9 @@ func (s *SnowflakeSetup) CreateOrResolveAccount() (resolvedAccount *ResolvedSnow
 }
 
 func (s *SnowflakeSetup) SetupAccount(resolvedAccount *ResolvedSnowflakeAcccount) error {
-	if s.cfg.SnowflakeConfig.ConfigType == config.SnowflakeConfigTypeNewAccount {
-		log.Println("Setting up new Snowflake account's admin user")
-		if err := s.setupSnowflakeAdmin(resolvedAccount); err != nil {
-			return errors.Wrap(err, "failed to setup Snowflake account")
-		}
+	log.Println("Setting up Snowflake account users")
+	if err := s.setupSnowflakeAdmin(resolvedAccount); err != nil {
+		return errors.Wrap(err, "failed to setup Snowflake account")
 	}
 
 	return nil

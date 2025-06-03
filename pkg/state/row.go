@@ -80,6 +80,7 @@ type Row struct {
 	SnowflakeEdition                   string
 	SnowflakeRegion                    string
 	SnowflakeAccountSetup              bool
+	SnowflakeAdminUsername             string
 	AWSPantherDeploymentRoleDeployed   bool
 	AWSReadinessBootstrapToolsDeployed bool
 	AWSReadinessCheckSucceeded         bool
@@ -102,13 +103,14 @@ type OutputDetails struct {
 	AdminUserLastName  string `json:"admin_user_last_name"`
 	AdminEmail         string `json:"admin_email"`
 
-	SnowflakeSecretARN   string `json:"snowflake_secret_arn,omitempty"`
-	SnowflakeAccountName string `json:"snowflake_account_name,omitempty"`
-	SnowflakeAccountURL  string `json:"snowflake_account_url,omitempty"`
-	SnowflakeEdition     string `json:"snowflake_edition,omitempty"`
-	SnowflakeRegion      string `json:"snowflake_region,omitempty"`
-	SnowflakeAdminSetup  bool   `json:"snowflake_admin_setup,omitempty"`
-	AWSAccountID         string `json:"aws_account_id"`
+	SnowflakeSecretARN     string `json:"snowflake_secret_arn,omitempty"`
+	SnowflakeAccountName   string `json:"snowflake_account_name,omitempty"`
+	SnowflakeAccountURL    string `json:"snowflake_account_url,omitempty"`
+	SnowflakeEdition       string `json:"snowflake_edition,omitempty"`
+	SnowflakeRegion        string `json:"snowflake_region,omitempty"`
+	SnowflakeAdminUsername string `json:"snowflake_admin_username,omitempty"`
+	SnowflakeAdminSetup    bool   `json:"snowflake_admin_setup,omitempty"`
+	AWSAccountID           string `json:"aws_account_id"`
 
 	PantherCertificate  *CertificateRecord     `json:"panther_certificate,omitempty"`
 	WildcardCertificate *CertificateRecord     `json:"wildcard_certificate,omitempty"`
@@ -188,14 +190,16 @@ func (r *Row) PopulateSnowflakeAccountDetails(accountDetails *snowflake.Resolved
 	r.SnowflakeAccountURL = accountDetails.URL
 	r.SnowflakeEdition = accountDetails.Edition
 	r.SnowflakeRegion = accountDetails.Region
+	r.SnowflakeAdminUsername = accountDetails.AdminUsername
 }
 
 func (r *Row) RenderNonSensitiveSnowflakeAccountDetails() *snowflake.ResolvedSnowflakeAcccount {
 	return &snowflake.ResolvedSnowflakeAcccount{
-		AccountName: r.SnowflakeAccountName,
-		URL:         r.SnowflakeAccountURL,
-		Edition:     r.SnowflakeEdition,
-		Region:      r.SnowflakeRegion,
+		AccountName:   r.SnowflakeAccountName,
+		URL:           r.SnowflakeAccountURL,
+		Edition:       r.SnowflakeEdition,
+		Region:        r.SnowflakeRegion,
+		AdminUsername: r.SnowflakeAdminUsername,
 	}
 }
 
@@ -228,6 +232,8 @@ func (r *Row) createStructuredOutput(cfg *config.Config) OutputDetails {
 		SnowflakeAccountName:      r.SnowflakeAccountName,
 		SnowflakeAccountURL:       r.SnowflakeAccountURL,
 		SnowflakeEdition:          r.SnowflakeEdition,
+		SnowflakeRegion:           r.SnowflakeRegion,
+		SnowflakeAdminUsername:    r.SnowflakeAdminUsername,
 		PantherEdition:            cfg.PantherAccountConfig.Edition,
 		PantherRegion:             cfg.PantherAccountConfig.Region,
 		PantherCertificate:        r.AWSCertificatesResults.PantherSubdomain,

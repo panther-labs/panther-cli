@@ -22,13 +22,22 @@ func formatSnowflakeDSNFromSnowflakeOrgConfig(cfg config.SnowflakeOrgConfig) str
 	if err != nil {
 		log.Fatalf("failed to parse RSA private key for Snowflake ORGADMIN credentials: %s", err.Error())
 	}
-	return util.FormatSnowflakeDSNFromRSAKey(
+	config, err := util.NewSnowflakeConnectionConfigWithLocatorAndRegion(
 		cfg.AccountRegion,
 		cfg.AccountLocator,
 		cfg.OrgAdminUsername,
-		"ORGADMIN",
+		util.SnowflakeRoleOrgAdmin,
 		parsedPrivateKey,
 	)
+	if err != nil {
+		log.Fatalf("failed to create Snowflake connection config: %s", err.Error())
+	}
+
+	dsn, err := config.GetDSN()
+	if err != nil {
+		log.Fatalf("failed to generate Snowflake DSN for credentials: %s", err.Error())
+	}
+	return dsn
 }
 
 func tryEnableSnowflakeDebugLogging() {

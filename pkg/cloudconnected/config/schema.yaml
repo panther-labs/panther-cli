@@ -38,8 +38,6 @@ properties:
         required:
           - PantherSubdomain
     required:
-      - AccessKeyID
-      - SecretAccessKey
       - CloudFormationConfig
       - DomainCertificateConfiguration
   PantherAccountConfig:
