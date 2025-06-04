@@ -2,17 +2,18 @@ package snowflake
 
 import (
 	"context"
+	"crypto/rsa"
 	"database/sql"
 	"fmt"
 	"log"
 	"strings"
 
+	"github.com/cenkalti/backoff/v4"
+	"github.com/k0kubun/pp/v3"
 	"github.com/pkg/errors"
 
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
 	"github.com/panther-labs/panther-cli/pkg/util"
-
-	"github.com/cenkalti/backoff/v4"
 )
 
 type AccountSetup struct {
@@ -24,13 +25,27 @@ type AccountSetup struct {
 func (a *AccountSetup) Connect(ctx context.Context, newAcct *ResolvedSnowflakeAcccount) error {
 	tryEnableSnowflakeDebugLogging()
 
-	dsn := util.FormatSnowflakeDSNFromRSAKey(
-		newAcct.GetAWSRegion(),
-		newAcct.AccountLocator,
-		PantherAccountAdminUserName,
-		"ACCOUNTADMIN",
+	util.LogDebugf("Connecting to Snowflake account with resolved details:\n%s", pp.Sprint(newAcct))
+
+	acctName := newAcct.AccountLocator
+	if acctName == "" {
+		util.LogDebugf("No account locator provided, using account name: %s", newAcct.AccountName)
+		acctName = newAcct.AccountName
+	}
+
+	config, err := util.NewSnowflakeConnectionConfigWithAccountName(
+		acctName,
+		newAcct.AdminUsername,
+		util.SnowflakeRoleAccountAdmin,
 		newAcct.AdminRSAKey,
 	)
+	if err != nil {
+		return err
+	}
+	dsn, err := config.GetDSN()
+	if err != nil {
+		return err
+	}
 	util.LogDebugf("Connecting to Snowflake with DSN: %s", dsn)
 
 	// It can take a little while for a new Snowflake account to
@@ -103,7 +118,7 @@ func (a *AccountSetup) mustSwitchToSecurityAdminRole() {
 	}
 }
 
-func (a *AccountSetup) SetupCustomerAccountAdminUser(cfg *config.NewSnowflakeAccountConfig) error {
+func (a *AccountSetup) CreateCustomerAccountAdminUser(cfg *config.NewSnowflakeAccountConfig) error {
 	if !a.isConnected() {
 		return errors.New("not connected to Snowflake")
 	}
@@ -125,7 +140,7 @@ func (a *AccountSetup) SetupCustomerAccountAdminUser(cfg *config.NewSnowflakeAcc
 		cfg.AdminEmail,
 	)
 
-	// result ends up being just a string of the form `User PANTHERACCOUNTADMIN successfully created.`
+	// result ends up being just a string of the form `User <username> successfully created.`
 	var result string
 	if err := createUserRow.Scan(&result); err != nil {
 		return errors.Wrapf(err, "error scanning result from CREATE USER query")
@@ -154,19 +169,152 @@ func (a *AccountSetup) SetupCustomerAccountAdminUser(cfg *config.NewSnowflakeAcc
 		log.Printf("User %s already exists", cfg.AdminUsername)
 	}
 
+	if err := a.grantAccountAdminRoles(cfg.AdminUsername); err != nil {
+		return errors.Wrap(err, "failed to grant roles to customer account admin user")
+	}
+
+	return nil
+}
+
+func (a *AccountSetup) CreatePantherAccountAdminUser(
+	cfg *config.ExistingSnowflakeAccountConfig,
+) (*rsa.PrivateKey, error) {
+	if !a.isConnected() {
+		return nil, errors.New("not connected to Snowflake")
+	}
+
+	a.mustSwitchToSecurityAdminRole()
+
+	// create the customer's accountadmin user
+	const createUserQuery = `CREATE USER IF NOT EXISTS %s
+  RSA_PUBLIC_KEY = ?
+  EMAIL = 'eng-core-infra@runpanther.io'
+  TYPE = 'SERVICE'
+  DEFAULT_ROLE = 'SYSADMIN';`
+
+	privateKey, pubKeyPEM, err := createAndWritePantherAccountAdminRSAPrivateKey(
+		cfg.PantherAccountAdminRSAKeyOutputPath,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	createUserRow := a.conn.QueryRowContext(
+		a.ctx,
+		fmt.Sprintf(createUserQuery, PantherAccountAdminUserName), // we cannot parameterize the user name
+		pubKeyPEM,
+	)
+
+	// result ends up being just a string of the form `User PANTHERACCOUNTADMIN successfully created.`
+	var result string
+	if err := createUserRow.Scan(&result); err != nil {
+		return nil, errors.Wrapf(err, "error scanning result from CREATE USER query")
+	}
+
+	expectedCreateUserResults := map[string]string{
+		"userCreated": fmt.Sprintf("User %s successfully created.", PantherAccountAdminUserName),
+		"userExists":  fmt.Sprintf("%s already exists, statement succeeded.", PantherAccountAdminUserName),
+	}
+	expectedResultFound := false
+
+	for _, expectedResult := range expectedCreateUserResults {
+		if strings.EqualFold(result, expectedResult) {
+			expectedResultFound = true
+			break
+		}
+	}
+
+	if !expectedResultFound {
+		return nil, errors.Errorf("unexpected result when creating %s: %s", PantherAccountAdminUserName, result)
+	}
+
+	if result == expectedCreateUserResults["userExists"] {
+		if err := a.updatePantherAccountAdminUserRSAPublicKey(pubKeyPEM); err != nil {
+			return nil, errors.Wrap(err, "failed to update PANTHERACCOUNTADMIN user's RSA public key")
+		}
+	}
+
+	if strings.EqualFold(result, expectedCreateUserResults["userCreated"]) {
+		log.Printf("Created new Snowflake '%s' user", PantherAccountAdminUserName)
+	} else {
+		log.Printf("User %s already exists", PantherAccountAdminUserName)
+	}
+
+	// grant the necessary roles to PANTHERACCOUNTADMIN
+	if err := a.GrantPantherAccountAdminUserRoles(); err != nil {
+		return nil, errors.Wrap(err, "failed to grant roles to PANTHERACCOUNTADMIN user")
+	}
+
+	return privateKey, nil
+}
+
+func (a *AccountSetup) updatePantherAccountAdminUserRSAPublicKey(pubKeyPEM string) error {
+	log.Printf("User %s already exists. Re-writing public key to ensure it is up to date.", PantherAccountAdminUserName)
+
+	const alterUserRSAPubKeyQuery = `ALTER USER %s SET RSA_PUBLIC_KEY = ?;`
+
+	alterUserRSAPubKeyResult := a.conn.QueryRowContext(
+		a.ctx,
+		fmt.Sprintf(alterUserRSAPubKeyQuery, PantherAccountAdminUserName),
+		pubKeyPEM,
+	)
+
+	var result string
+	if err := alterUserRSAPubKeyResult.Scan(&result); err != nil {
+		return errors.Wrapf(err, "error scanning result from ALTER USER SET RSA_PUBLIC_KEY query")
+	}
+
+	log.Printf("Updated %s user's RSA public key to: %s", PantherAccountAdminUserName, pubKeyPEM)
+
+	return nil
+}
+
+func (a *AccountSetup) grantAccountAdminRoles(username string) error {
+	if !a.isConnected() {
+		return errors.New("not connected to Snowflake")
+	}
+
+	a.mustSwitchToSecurityAdminRole()
+
 	// grant the necessary roles to PANTHERACCOUNTADMIN
 	const grantQuery = `GRANT ROLE SYSADMIN, SECURITYADMIN, ACCOUNTADMIN TO USER %s;`
 
 	grantRolesRow := a.conn.QueryRowContext(
 		a.ctx,
-		fmt.Sprintf(grantQuery, cfg.AdminUsername),
+		fmt.Sprintf(grantQuery, username),
 	)
 
+	var result string
 	if err := grantRolesRow.Scan(&result); err != nil {
 		return errors.Wrapf(err, "error scanning result from GRANT ROLE query")
 	}
 
-	log.Printf("Granted roles SYSADMIN, SECURITYADMIN, ACCOUNTADMIN to '%s' user: %+v", cfg.AdminUsername, result)
+	log.Printf(
+		"Granted roles SYSADMIN, SECURITYADMIN, ACCOUNTADMIN to '%s' user: %+v",
+		username,
+		result,
+	)
+
+	const alterUserDefaultRoleQuery = `ALTER USER %s SET DEFAULT_ROLE = 'SYSADMIN';`
+
+	alterUserDefaultRoleRow := a.conn.QueryRowContext(
+		a.ctx,
+		fmt.Sprintf(alterUserDefaultRoleQuery, username),
+	)
+
+	if err := alterUserDefaultRoleRow.Scan(&result); err != nil {
+		return errors.Wrapf(err, "error scanning result from ALTER USER SET DEFAULT_ROLE query")
+	}
+
+	log.Printf(
+		"Set default role to 'SYSADMIN' for '%s' user: %+v",
+		username,
+		result,
+	)
 
 	return nil
+}
+
+func (a *AccountSetup) GrantPantherAccountAdminUserRoles() error {
+	return a.grantAccountAdminRoles(PantherAccountAdminUserName)
 }

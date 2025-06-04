@@ -18,24 +18,5 @@ PantherAccountConfig:
   Region: <YOUR PANTHER REGION> # Format this as an AWS region name - e.g. us-west-2
   IpAddressAllowList: [] # A list of IP addresses formatted as CIDR blocks that are allowed to access the Panther UI.
 
-SnowflakeConfig:
-  ExistingAccountConfig:
-    # Documentation: https://docs.snowflake.com/en/user-guide/admin-account-identifier#label-account-name-find
-    AccountName: <YOUR SNOWFLAKE ACCOUNT NAME>
-
-    # https://docs.snowflake.com/en/user-guide/admin-account-identifier#finding-the-organization-and-account-name-for-an-account
-    URL: https://<YOUR SNOWFLAKE ACCOUNT NAME>.snowflakecomputing.com
-
-    # STANDARD, BUSINESS_CRITICAL, or ENTERPRISE - if you have Panther Enterprise, you must use at least `ENTERPRISE`
-    Edition: ENTERPRISE
-
-    # Format this as an AWS region name - e.g. us-west-2. It must match your Panther region.
-    Region: <YOUR SNOWFLAKE ACCOUNT REGION>
-
-    AdminUsername: <YOUR SNOWFLAKE ACCOUNT ADMIN USERNAME>
-
-    # This file must be in PEM format.
-    AdminRSAKeyPath: <YOUR ADMIN USER'S RSA PRIVATE KEY FILE PATH>
-
-    # Path write the PANTHERACCOUNTADMIN user's private key.
-    PantherAccountAdminRSAKeyOutputPath: ./keys/panther_account_admin_private_key.pem
+# Leave this empty - this just indicates we're using Redshift as the datalake. We don't require additional fields.
+RedshiftConfig:

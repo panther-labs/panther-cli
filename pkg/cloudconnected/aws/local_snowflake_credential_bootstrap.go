@@ -3,6 +3,7 @@ package aws
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
@@ -109,13 +110,20 @@ func (l *LocalSnowflakeCredentialBootstrap) ValidateSecret(ctx context.Context) 
 		return errors.Wrap(err, "failed to parse private key")
 	}
 
-	dsn := util.FormatSnowflakeDSNFromRSAKey(
-		"", // we don't need to specify region here
+	config, err := util.NewSnowflakeConnectionConfigWithAccountName(
 		secret.Account,
 		secret.Username,
-		"ACCOUNTADMIN", // the snowflake role, not the user PANTHERACCOUNTADMIN
+		util.SnowflakeRoleAccountAdmin, // the snowflake role, not the user PANTHERACCOUNTADMIN
 		asRsaPrivateKey,
 	)
+	if err != nil {
+		return errors.Wrap(err, "failed to create Snowflake connection config")
+	}
+
+	dsn, err := config.GetDSN()
+	if err != nil {
+		return err
+	}
 
 	db, err := snowflake.OpenSnowflakeAccountConnection(ctx, dsn)
 	if err != nil {
@@ -130,6 +138,13 @@ func (l *LocalSnowflakeCredentialBootstrap) ValidateSecret(ctx context.Context) 
 
 	if err := db.Ping(); err != nil {
 		return errors.Wrapf(err, "failed to ping Snowflake host: '%s'", secret.Host)
+	}
+
+	log.Println("Attempting to use each of the expected roles to validate PANTHERACCOUNTADMIN user.")
+
+	roles := []string{"SYSADMIN", "SECURITYADMIN", "ACCOUNTADMIN"}
+	for _, role := range roles {
+		db.QueryRowContext(ctx, fmt.Sprintf("USE ROLE %s", role))
 	}
 
 	log.Printf("Successfully validated credentials with Snowflake host: '%s'", secret.Host)

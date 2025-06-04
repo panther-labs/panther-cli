@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"log"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -131,6 +132,31 @@ func MustFormatPublicKey(privateKey *rsa.PrivateKey) string {
 	pubKey, err := FormatPublicKey(privateKey)
 	if err != nil {
 		log.Fatalf("failed to format public key from private key: %s", err.Error())
+	}
+	return pubKey
+}
+
+func FormatPublicKeyForSnowflake(privateKey *rsa.PrivateKey) (string, error) {
+	pubKey, err := FormatPublicKey(privateKey)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to format public key to PEM format")
+	}
+
+	// strip the -----BEGIN PUBLIC KEY----- and -----END PUBLIC KEY----- lines
+	pubKey = strings.ReplaceAll(pubKey, "-----BEGIN PUBLIC KEY-----", "")
+	pubKey = strings.ReplaceAll(pubKey, "-----END PUBLIC KEY-----", "")
+
+	// remove all whitespace and newlines
+	pubKey = strings.ReplaceAll(pubKey, " ", "")
+	pubKey = strings.ReplaceAll(pubKey, "\n", "")
+
+	return pubKey, nil
+}
+
+func MustFormatPublicKeyForSnowflake(privateKey *rsa.PrivateKey) string {
+	pubKey, err := FormatPublicKeyForSnowflake(privateKey)
+	if err != nil {
+		log.Fatalf("failed to format public key for Snowflake: %s", err.Error())
 	}
 	return pubKey
 }

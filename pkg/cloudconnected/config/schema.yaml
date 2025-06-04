@@ -38,8 +38,6 @@ properties:
         required:
           - PantherSubdomain
     required:
-      - AccessKeyID
-      - SecretAccessKey
       - CloudFormationConfig
       - DomainCertificateConfiguration
   PantherAccountConfig:
@@ -101,15 +99,34 @@ properties:
             type: string
             pattern: "^[a-z]{2}-[a-z]+-[0-9]$" # AWS region pattern
             description: The AWS region where your Snowflake account is hosted.
-          PantherAccountAdminRSAKeyPath:
+          AdminUsername:
             type: string
-            description: Path to the private key file for the PANTHERACCOUNTADMIN user.
+            description: The username for the Snowflake Admin user.
+          AdminRSAKeyPath:
+            type: string
+            description: Path to the private key file for the Snowflake Admin user.
+          AdminRSAKeyEnvVarName:
+            type: string
+            description: The environment variable name containing the Snowflake Admin user's RSA key.
+          PantherAccountAdminRSAKeyOutputPath:
+            type: string
+            description: Path where the generated PANTHERACCOUNTADMIN private key will be saved.
         required:
           - AccountName
           - URL
           - Edition
           - Region
-          - PantherAccountAdminRSAKeyPath
+          - AdminUsername
+          - PantherAccountAdminRSAKeyOutputPath
+        oneOf:
+          - required: [AdminRSAKeyPath]
+            properties:
+              AdminRSAKeyPath: true
+              AdminRSAKeyEnvVarName: false
+          - required: [AdminRSAKeyEnvVarName]
+            properties:
+              AdminRSAKeyEnvVarName: true
+              AdminRSAKeyPath: false
         additionalProperties: false
       NewAccountConfig:
         type: object
@@ -170,8 +187,12 @@ properties:
           NewAccountConfig: true # Makes sure this property is defined
     # Prevent both keys from being present, even if one is null/empty
     additionalProperties: false
+  RedshiftConfig:
+    type: object
+    properties: {} # Empty object instead of undefined
+    required: []
+    additionalProperties: false
 required:
   - AWSConfig
   - PantherAccountConfig
-  - SnowflakeConfig
 additionalProperties: false

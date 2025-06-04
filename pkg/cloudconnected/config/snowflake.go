@@ -1,11 +1,13 @@
 package config
 
 import (
+	"crypto/rsa"
 	"log"
 	"os"
 	"strings"
 
 	"github.com/k0kubun/pp/v3"
+	"github.com/panther-labs/panther-cli/pkg/rsapem"
 	"github.com/pkg/errors"
 )
 
@@ -23,6 +25,13 @@ type SnowflakeConfig struct {
 	ExistingAccountConfig *ExistingSnowflakeAccountConfig `yaml:"ExistingAccountConfig" validate:"required_without=NewAccountConfig,excluded_with=NewAccountConfig"`
 }
 
+func (sc *SnowflakeConfig) GetPantherAccountAdminRSAKey() (*rsa.PrivateKey, error) {
+	if sc.ConfigType == SnowflakeConfigTypeNewAccount {
+		return sc.NewAccountConfig.LoadPantherAccountAdminRSAKey()
+	}
+	return sc.ExistingAccountConfig.LoadPantherAccountAdminRSAKey()
+}
+
 //nolint:lll
 type SnowflakeOrgConfig struct {
 	AccountLocator         string `yaml:"AccountLocator"         validate:"required"`
@@ -34,20 +43,79 @@ type SnowflakeOrgConfig struct {
 
 //nolint:lll
 type ExistingSnowflakeAccountConfig struct {
-	AccountName                   string `yaml:"AccountName"                   validate:"required"`
-	URL                           string `yaml:"URL"                           validate:"required,url"`
-	Edition                       string `yaml:"Edition"                       validate:"required,oneof=STANDARD ENTERPRISE BUSINESS_CRITICAL"`
-	Region                        string `yaml:"Region"                        validate:"required,lowercase,validPantherRegion"`
-	PantherAccountAdminRSAKeyPath string `yaml:"PantherAccountAdminRSAKeyPath" validate:"required"`
+	AccountName                         string          `yaml:"AccountName"                         validate:"required"`
+	URL                                 string          `yaml:"URL"                                 validate:"required,url"`
+	Edition                             string          `yaml:"Edition"                             validate:"required,oneof=STANDARD ENTERPRISE BUSINESS_CRITICAL"`
+	Region                              string          `yaml:"Region"                              validate:"required,lowercase,validPantherRegion"`
+	AdminUsername                       string          `yaml:"AdminUsername"                       validate:"required,validAdminName"`
+	AdminRSAKeyEnvVarName               string          `yaml:"AdminRSAKeyEnvVarName"               validate:"required_without=AdminRSAKeyPath,excluded_with=AdminRSAKeyPath"`
+	AdminRSAKeyPath                     string          `yaml:"AdminRSAKeyPath"                     validate:"required_without=AdminRSAKeyEnvVarName,excluded_with=AdminRSAKeyEnvVarName"`
+	PantherAccountAdminRSAKeyOutputPath string          `yaml:"PantherAccountAdminRSAKeyOutputPath" validate:"required"`
+	PantherAccountAdminRSAKey           *rsa.PrivateKey `yaml:"-"                                                                                                                         json:"-"`
 }
 
-func (e *ExistingSnowflakeAccountConfig) LoadPantherAccountAdminRSAKey() (string, error) {
-	privateKey, err := os.ReadFile(e.PantherAccountAdminRSAKeyPath)
+func (e *ExistingSnowflakeAccountConfig) LoadAccountAdminRSAKey() (*rsa.PrivateKey, error) {
+	if e.AdminRSAKeyEnvVarName != "" {
+		log.Printf(
+			"Loading account Admin user ('%s') RSA key from environment variable: %s",
+			e.AdminUsername,
+			e.AdminRSAKeyEnvVarName,
+		)
+		privateKeyAsStr := os.Getenv(e.AdminRSAKeyEnvVarName)
+
+		privateKey, err := rsapem.ParseRSAPEMPrivateKey(privateKeyAsStr)
+		if err != nil {
+			return nil, errors.Wrapf(
+				err,
+				"failed to decode Panther account admin RSA key from environment variable: %s",
+				e.AdminRSAKeyEnvVarName,
+			)
+		}
+
+		return privateKey, nil
+	}
+
+	log.Printf(
+		"Loading account Admin user ('%s') RSA key from file: %s",
+		e.AdminUsername,
+		e.AdminRSAKeyPath,
+	)
+
+	privateKeyAsStr, err := os.ReadFile(e.AdminRSAKeyPath)
 	if err != nil {
 		log.Printf("failed to read PantherAccountAdminRSAKeyPath, error='%s', config section:\n%s", err, pp.Sprint(e))
-		return "", err
+		return nil, err
 	}
-	return string(privateKey), nil
+
+	privateKey, err := rsapem.ParseRSAPEMPrivateKey(string(privateKeyAsStr))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to decode Panther account admin RSA key")
+	}
+
+	return privateKey, nil
+}
+
+func (e *ExistingSnowflakeAccountConfig) LoadPantherAccountAdminRSAKey() (*rsa.PrivateKey, error) {
+	if e.PantherAccountAdminRSAKey != nil {
+		return e.PantherAccountAdminRSAKey, nil
+	}
+
+	log.Printf(
+		"Loading PANTHERACCOUNTADMIN user RSA key from path: %s", e.PantherAccountAdminRSAKeyOutputPath,
+	)
+
+	privateKeyAsStr, err := os.ReadFile(e.AdminRSAKeyPath)
+	if err != nil {
+		log.Printf("failed to read PantherAccountAdminRSAKeyPath, error='%s', config section:\n%s", err, pp.Sprint(e))
+		return nil, err
+	}
+
+	privateKey, err := rsapem.ParseRSAPEMPrivateKey(string(privateKeyAsStr))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to decode Panther account admin RSA key")
+	}
+
+	return privateKey, nil
 }
 
 //nolint:lll
@@ -71,22 +139,28 @@ func (n *NewSnowflakeAccountConfig) GetSnowflakeRegion() string {
 	return "aws_" + region
 }
 
-func (n *NewSnowflakeAccountConfig) LoadPantherAccountAdminRSAKey() (string, error) {
+func (n *NewSnowflakeAccountConfig) LoadPantherAccountAdminRSAKey() (*rsa.PrivateKey, error) {
 	if _, err := os.Stat(n.PantherAccountAdminRSAKeyOutputPath); os.IsNotExist(err) {
-		return "", errors.Errorf(
+		return nil, errors.Errorf(
 			"It looks like you haven't created the new Snowflake account yet. The RSA keypair does not exist at location: %s",
 			n.PantherAccountAdminRSAKeyOutputPath,
 		)
 	}
 
-	privateKey, err := os.ReadFile(n.PantherAccountAdminRSAKeyOutputPath)
+	privateKeyAsStr, err := os.ReadFile(n.PantherAccountAdminRSAKeyOutputPath)
 	if err != nil {
 		log.Printf(
 			"failed to read PantherAccountAdminRSAKeyOutputPath, error='%s', config section:\n%s",
 			err,
 			pp.Sprint(n),
 		)
-		return "", err
+		return nil, err
 	}
-	return string(privateKey), nil
+
+	privateKey, err := rsapem.ParseRSAPEMPrivateKey(string(privateKeyAsStr))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to decode Panther account admin RSA key")
+	}
+
+	return privateKey, nil
 }
