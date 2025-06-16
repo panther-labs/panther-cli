@@ -145,16 +145,16 @@ func printDNSValidationInstructions(certs state.CertificateResults) {
 func setupAWS(ctx context.Context, cfg *config.Config, stateManager *state.Manager) error {
 	currentState := stateManager.GetState()
 
-	needsSetup := !currentState.AWSPantherDeploymentRoleDeployed || 
+	needsSetup := !currentState.AWSPantherDeploymentRoleDeployed ||
 		!currentState.AWSReadinessBootstrapToolsDeployed ||
 		!currentState.AWSDeploymentRoleUpdaterDeployed
-	
+
 	if needsSetup {
 		awsSetup, err := aws.NewCloudFormation(ctx, cfg.AWSConfig)
 		if err != nil {
 			return errors.Wrap(err, "failed to initialize AWS CloudFormation")
 		}
-	
+
 		if !currentState.AWSPantherDeploymentRoleDeployed {
 			log.Println("Deploying PantherDeploymentRole...")
 			if err := awsSetup.ApplyDeploymentRole(); err != nil {
@@ -168,7 +168,7 @@ func setupAWS(ctx context.Context, cfg *config.Config, stateManager *state.Manag
 			if err := stateManager.UpdateAWSDeploymentState(true); err != nil {
 				return errors.Wrap(err, "failed to update AWS deployment state")
 			}
-			
+
 			log.Println("Successfully deployed PantherDeploymentRole")
 		} else {
 			log.Println("Using existing PantherDeploymentRole")
@@ -187,7 +187,7 @@ func setupAWS(ctx context.Context, cfg *config.Config, stateManager *state.Manag
 			if err := stateManager.UpdateAWSBootstrapState(true); err != nil {
 				return errors.Wrap(err, "failed to update AWS bootstrap state")
 			}
-			
+
 			log.Println("Successfully deployed pre-deployment tools")
 		} else {
 			log.Println("Using existing pre-deployment tools")
@@ -207,7 +207,7 @@ func setupAWS(ctx context.Context, cfg *config.Config, stateManager *state.Manag
 			if err := stateManager.UpdateAWSDeploymentRoleUpdaterState(true); err != nil {
 				return errors.Wrap(err, "failed to update AWS deployment role updater state")
 			}
-			
+
 			log.Println("Successfully deployed deployment role updater")
 		} else {
 			log.Println("Using existing deployment role updater")
