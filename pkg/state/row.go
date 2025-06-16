@@ -89,6 +89,7 @@ type Row struct {
 	AWSSnowflakeSecretARN              string
 	AWSCertificatesRequested           bool
 	AWSCertificatesResults             CertificateResults
+	AWSDeploymentRoleUpdaterDeployed   bool
 }
 
 // OutputDetails contains the structured information for formatted output
@@ -246,6 +247,7 @@ func (r *Row) createStructuredOutput(cfg *config.Config) OutputDetails {
 	output.DeploymentStatus["aws_bootstrap_tools_deployed"] = r.AWSReadinessBootstrapToolsDeployed
 	output.DeploymentStatus["aws_readiness_check_succeeded"] = r.AWSReadinessCheckSucceeded
 	output.DeploymentStatus["aws_snowflake_bootstrap_succeeded"] = r.AWSSnowflakeBootstrapSucceeded
+	output.DeploymentStatus["aws_deployment_role_updater_deployed"] = r.AWSDeploymentRoleUpdaterDeployed
 
 	// Use the ARN from state if available
 	if r.AWSSnowflakeBootstrapSucceeded && r.AWSSnowflakeSecretARN != "" {

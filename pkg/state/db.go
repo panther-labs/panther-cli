@@ -27,7 +27,8 @@ const (
 		aws_snowflake_bootstrap_succeeded BOOLEAN,
 		aws_snowflake_secret_arn TEXT,
 		aws_certificates_requested BOOLEAN,
-		aws_certificates_results JSON
+		aws_certificates_results JSON,
+		aws_deployment_role_updater_deployed BOOLEAN
 	)`
 )
 
@@ -89,7 +90,8 @@ func (d *DB) GetState(configHash string) (*Row, error) {
 			aws_snowflake_bootstrap_succeeded,
 			aws_snowflake_secret_arn,
 			aws_certificates_requested,
-			aws_certificates_results
+			aws_certificates_results,
+			aws_deployment_role_updater_deployed
 		FROM execution_state
 		WHERE config_hash = ?`
 
@@ -110,6 +112,7 @@ func (d *DB) GetState(configHash string) (*Row, error) {
 		&row.AWSSnowflakeSecretARN,
 		&row.AWSCertificatesRequested,
 		&row.AWSCertificatesResults,
+		&row.AWSDeploymentRoleUpdaterDeployed,
 	)
 
 	if err == sql.ErrNoRows {
@@ -177,8 +180,9 @@ func (d *DB) SaveState(row *Row) error {
 			aws_snowflake_bootstrap_succeeded,
 			aws_snowflake_secret_arn,
 			aws_certificates_requested,
-			aws_certificates_results
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			aws_certificates_results,
+			aws_deployment_role_updater_deployed
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(config_hash) DO UPDATE SET
 			snowflake_account_name = excluded.snowflake_account_name,
 			snowflake_account_url = excluded.snowflake_account_url,
@@ -192,7 +196,8 @@ func (d *DB) SaveState(row *Row) error {
 			aws_snowflake_bootstrap_succeeded = excluded.aws_snowflake_bootstrap_succeeded,
 			aws_snowflake_secret_arn = excluded.aws_snowflake_secret_arn,
 			aws_certificates_requested = excluded.aws_certificates_requested,
-			aws_certificates_results = excluded.aws_certificates_results`
+			aws_certificates_results = excluded.aws_certificates_results,
+			aws_deployment_role_updater_deployed = excluded.aws_deployment_role_updater_deployed`
 
 	_, err := d.db.Exec(
 		query,
@@ -211,6 +216,7 @@ func (d *DB) SaveState(row *Row) error {
 		row.AWSSnowflakeSecretARN,
 		row.AWSCertificatesRequested,
 		row.AWSCertificatesResults,
+		row.AWSDeploymentRoleUpdaterDeployed,
 	)
 	if err != nil {
 		return errors.Wrap(err, "failed to save state")

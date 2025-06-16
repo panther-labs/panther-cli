@@ -145,34 +145,72 @@ func printDNSValidationInstructions(certs state.CertificateResults) {
 func setupAWS(ctx context.Context, cfg *config.Config, stateManager *state.Manager) error {
 	currentState := stateManager.GetState()
 
-	if !currentState.AWSPantherDeploymentRoleDeployed || !currentState.AWSReadinessBootstrapToolsDeployed {
-		awsSetup, err := aws.NewCloudFormation(ctx, cfg.AWSConfig)
-		if err != nil {
-			return errors.Wrap(err, "failed to initialize AWS CloudFormation")
+	awsSetup, err := aws.NewCloudFormation(ctx, cfg.AWSConfig)
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize AWS CloudFormation")
+	}
+
+	needsSetup := !currentState.AWSPantherDeploymentRoleDeployed || 
+		!currentState.AWSReadinessBootstrapToolsDeployed ||
+		!currentState.AWSDeploymentRoleUpdaterDeployed
+	
+	if needsSetup {
+		if !currentState.AWSPantherDeploymentRoleDeployed {
+			log.Println("Deploying PantherDeploymentRole...")
+			if err := awsSetup.ApplyDeploymentRole(); err != nil {
+				return errors.Wrapf(
+					err,
+					"failed to create deployment role stack (%s)",
+					cfg.AWSConfig.CloudFormationConfig.DeploymentRoleName,
+				)
+			}
+
+			if err := stateManager.UpdateAWSDeploymentState(true); err != nil {
+				return errors.Wrap(err, "failed to update AWS deployment state")
+			}
+			
+			log.Println("Successfully deployed PantherDeploymentRole")
+		} else {
+			log.Println("Using existing PantherDeploymentRole")
 		}
 
-		if err := awsSetup.ApplyDeploymentRole(); err != nil {
-			return errors.Wrapf(
-				err,
-				"failed to create deployment role stack (%s)",
-				cfg.AWSConfig.CloudFormationConfig.DeploymentRoleName,
-			)
+		if !currentState.AWSReadinessBootstrapToolsDeployed {
+			log.Println("Deploying pre-deployment tools...")
+			if err := awsSetup.ApplyPreDeploymentTools(); err != nil {
+				return errors.Wrapf(
+					err,
+					"failed to apply pre-deployment tools stack (%s)",
+					cfg.AWSConfig.CloudFormationConfig.PreDeploymentToolsStackName,
+				)
+			}
+
+			if err := stateManager.UpdateAWSBootstrapState(true); err != nil {
+				return errors.Wrap(err, "failed to update AWS bootstrap state")
+			}
+			
+			log.Println("Successfully deployed pre-deployment tools")
+		} else {
+			log.Println("Using existing pre-deployment tools")
 		}
 
-		if err := stateManager.UpdateAWSDeploymentState(true); err != nil {
-			return errors.Wrap(err, "failed to update AWS deployment state")
-		}
+		// Deploy Deployment Role Updater if needed
+		if !currentState.AWSDeploymentRoleUpdaterDeployed {
+			log.Println("Deploying deployment role updater...")
+			if err := awsSetup.ApplyDeploymentRoleUpdater(); err != nil {
+				return errors.Wrapf(
+					err,
+					"failed to apply deployment role updater stack (%s)",
+					cfg.AWSConfig.CloudFormationConfig.DeploymentRoleUpdaterStackName,
+				)
+			}
 
-		if err := awsSetup.ApplyPreDeploymentTools(); err != nil {
-			return errors.Wrapf(
-				err,
-				"failed to apply pre-deployment tools stack (%s)",
-				cfg.AWSConfig.CloudFormationConfig.PreDeploymentToolsStackName,
-			)
-		}
-
-		if err := stateManager.UpdateAWSBootstrapState(true); err != nil {
-			return errors.Wrap(err, "failed to update AWS bootstrap state")
+			if err := stateManager.UpdateAWSDeploymentRoleUpdaterState(true); err != nil {
+				return errors.Wrap(err, "failed to update AWS deployment role updater state")
+			}
+			
+			log.Println("Successfully deployed deployment role updater")
+		} else {
+			log.Println("Using existing deployment role updater")
 		}
 	} else {
 		log.Println("Using existing AWS setup")

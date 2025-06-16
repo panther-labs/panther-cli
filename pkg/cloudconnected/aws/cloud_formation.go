@@ -88,6 +88,34 @@ func (c *CloudFormation) ApplyPreDeploymentTools() error {
 	)
 }
 
+func (c *CloudFormation) ApplyDeploymentRoleUpdater() error {
+	templateContent, err := util.LoadContent(c.ctx, c.cfg.CloudFormationConfig.DeploymentRoleUpdaterTemplateURL)
+	if err != nil {
+		return errors.Wrap(err, "failed to fetch CloudFormation template for deployment role updater")
+	}
+
+	log.Printf("Deploying deployment role updater from '%s'", c.cfg.CloudFormationConfig.DeploymentRoleUpdaterTemplateURL)
+
+	stackName := c.cfg.CloudFormationConfig.DeploymentRoleUpdaterStackName
+
+	parameters := []types.Parameter{
+		{
+			ParameterKey:   aws.String("DeploymentRoleStackName"),
+			ParameterValue: aws.String(c.cfg.CloudFormationConfig.DeploymentRoleStackName),
+		},
+		{
+			ParameterKey:   aws.String("IdentityAccountId"),
+			ParameterValue: aws.String(c.cfg.CloudFormationConfig.IdentityAccountId),
+		},
+		{
+			ParameterKey:   aws.String("OpsAccountId"),
+			ParameterValue: aws.String(c.cfg.CloudFormationConfig.OpsAccountId),
+		},
+	}
+
+	return c.applyCloudFormationTemplate(templateContent, stackName, parameters)
+}
+
 func (c *CloudFormation) applyCloudFormationTemplate(
 	templateContent string,
 	stackName string,
