@@ -74,24 +74,23 @@ func (r *ReadinessCheckResults) Scan(value interface{}) error {
 }
 
 type Row struct {
-	ConfigHash                         string `validate:"sha256"`
-	SnowflakeAccountName               string
-	SnowflakeAccountURL                string
-	SnowflakeEdition                   string
-	SnowflakeRegion                    string
-	SnowflakeAccountSetup              bool
-	SnowflakeAdminUsername             string
-	
-	AWSPantherDeploymentRoleDeployed          bool
-	AWSPantherDeploymentRoleUpdaterDeployed   bool
-	AWSReadinessBootstrapToolsDeployed        bool
-	AWSReadinessCheckSucceeded                bool
-	AWSReadinessCheckResults                  ReadinessCheckResults
-	AWSSnowflakeBootstrapSucceeded            bool
-	AWSSnowflakeSecretARN                     string
-	AWSCertificatesRequested                  bool
-	AWSCertificatesResults                    CertificateResults
-	
+	ConfigHash             string `validate:"sha256"`
+	SnowflakeAccountName   string
+	SnowflakeAccountURL    string
+	SnowflakeEdition       string
+	SnowflakeRegion        string
+	SnowflakeAccountSetup  bool
+	SnowflakeAdminUsername string
+
+	AWSPantherDeploymentRoleDeployed        bool
+	AWSPantherDeploymentRoleUpdaterDeployed bool
+	AWSReadinessBootstrapToolsDeployed      bool
+	AWSReadinessCheckSucceeded              bool
+	AWSReadinessCheckResults                ReadinessCheckResults
+	AWSSnowflakeBootstrapSucceeded          bool
+	AWSSnowflakeSecretARN                   string
+	AWSCertificatesRequested                bool
+	AWSCertificatesResults                  CertificateResults
 }
 
 // OutputDetails contains the structured information for formatted output
@@ -255,7 +254,7 @@ func (r *Row) createStructuredOutput(cfg *config.Config) OutputDetails {
 	output.DeploymentStatus["aws_deployment_role_updater_deployed"] = r.AWSPantherDeploymentRoleUpdaterDeployed
 	output.DeploymentStatus["aws_bootstrap_tools_deployed"] = r.AWSReadinessBootstrapToolsDeployed
 	output.DeploymentStatus["aws_readiness_check_succeeded"] = r.AWSReadinessCheckSucceeded
-	output.DeploymentStatus["aws_snowflake_bootstrap_succeeded"] = r.AWSSnowflakeBootstrapSucceeded	
+	output.DeploymentStatus["aws_snowflake_bootstrap_succeeded"] = r.AWSSnowflakeBootstrapSucceeded
 
 	// Use the ARN from state if available
 	if r.AWSSnowflakeBootstrapSucceeded && r.AWSSnowflakeSecretARN != "" {
