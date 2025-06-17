@@ -21,14 +21,14 @@ const (
 		snowflake_account_setup BOOLEAN,
 		snowflake_admin_username TEXT,
 		aws_panther_deployment_role_deployed BOOLEAN,
+		aws_panther_deployment_role_updater_deployed BOOLEAN,
 		aws_readiness_bootstrap_tools_deployed BOOLEAN,
 		aws_readiness_check_succeeded BOOLEAN,
 		aws_readiness_check_results JSON,
 		aws_snowflake_bootstrap_succeeded BOOLEAN,
 		aws_snowflake_secret_arn TEXT,
 		aws_certificates_requested BOOLEAN,
-		aws_certificates_results JSON,
-		aws_deployment_role_updater_deployed BOOLEAN
+		aws_certificates_results JSON
 	)`
 )
 
@@ -84,14 +84,14 @@ func (d *DB) GetState(configHash string) (*Row, error) {
 			snowflake_account_setup,
 			snowflake_admin_username,
 			aws_panther_deployment_role_deployed,
+			aws_panther_deployment_role_updater_deployed,
 			aws_readiness_bootstrap_tools_deployed,
 			aws_readiness_check_succeeded,
 			aws_readiness_check_results,
 			aws_snowflake_bootstrap_succeeded,
 			aws_snowflake_secret_arn,
 			aws_certificates_requested,
-			aws_certificates_results,
-			aws_deployment_role_updater_deployed
+			aws_certificates_results
 		FROM execution_state
 		WHERE config_hash = ?`
 
@@ -105,6 +105,7 @@ func (d *DB) GetState(configHash string) (*Row, error) {
 		&row.SnowflakeAccountSetup,
 		&row.SnowflakeAdminUsername,
 		&row.AWSPantherDeploymentRoleDeployed,
+		&row.AWSPantherDeploymentRoleUpdaterDeployed,
 		&row.AWSReadinessBootstrapToolsDeployed,
 		&row.AWSReadinessCheckSucceeded,
 		&row.AWSReadinessCheckResults,
@@ -112,7 +113,6 @@ func (d *DB) GetState(configHash string) (*Row, error) {
 		&row.AWSSnowflakeSecretARN,
 		&row.AWSCertificatesRequested,
 		&row.AWSCertificatesResults,
-		&row.AWSDeploymentRoleUpdaterDeployed,
 	)
 
 	if err == sql.ErrNoRows {
@@ -174,14 +174,14 @@ func (d *DB) SaveState(row *Row) error {
 			snowflake_account_setup,
 			snowflake_admin_username,
 			aws_panther_deployment_role_deployed,
+			aws_panther_deployment_role_updater_deployed,
 			aws_readiness_bootstrap_tools_deployed,
 			aws_readiness_check_succeeded,
 			aws_readiness_check_results,
 			aws_snowflake_bootstrap_succeeded,
 			aws_snowflake_secret_arn,
 			aws_certificates_requested,
-			aws_certificates_results,
-			aws_deployment_role_updater_deployed
+			aws_certificates_results
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(config_hash) DO UPDATE SET
 			snowflake_account_name = excluded.snowflake_account_name,
@@ -190,14 +190,14 @@ func (d *DB) SaveState(row *Row) error {
 			snowflake_account_setup = excluded.snowflake_account_setup,
 			snowflake_admin_username = excluded.snowflake_admin_username,
 			aws_panther_deployment_role_deployed = excluded.aws_panther_deployment_role_deployed,
+			aws_panther_deployment_role_updater_deployed = excluded.aws_panther_deployment_role_updater_deployed,
 			aws_readiness_bootstrap_tools_deployed = excluded.aws_readiness_bootstrap_tools_deployed,
 			aws_readiness_check_succeeded = excluded.aws_readiness_check_succeeded,
 			aws_readiness_check_results = excluded.aws_readiness_check_results,
 			aws_snowflake_bootstrap_succeeded = excluded.aws_snowflake_bootstrap_succeeded,
 			aws_snowflake_secret_arn = excluded.aws_snowflake_secret_arn,
 			aws_certificates_requested = excluded.aws_certificates_requested,
-			aws_certificates_results = excluded.aws_certificates_results,
-			aws_deployment_role_updater_deployed = excluded.aws_deployment_role_updater_deployed`
+			aws_certificates_results = excluded.aws_certificates_results`
 
 	_, err := d.db.Exec(
 		query,
@@ -209,6 +209,7 @@ func (d *DB) SaveState(row *Row) error {
 		row.SnowflakeAccountSetup,
 		row.SnowflakeAdminUsername,
 		row.AWSPantherDeploymentRoleDeployed,
+		row.AWSPantherDeploymentRoleUpdaterDeployed,
 		row.AWSReadinessBootstrapToolsDeployed,
 		row.AWSReadinessCheckSucceeded,
 		row.AWSReadinessCheckResults,
@@ -216,7 +217,6 @@ func (d *DB) SaveState(row *Row) error {
 		row.AWSSnowflakeSecretARN,
 		row.AWSCertificatesRequested,
 		row.AWSCertificatesResults,
-		row.AWSDeploymentRoleUpdaterDeployed,
 	)
 	if err != nil {
 		return errors.Wrap(err, "failed to save state")

@@ -145,11 +145,7 @@ func printDNSValidationInstructions(certs state.CertificateResults) {
 func setupAWS(ctx context.Context, cfg *config.Config, stateManager *state.Manager) error {
 	currentState := stateManager.GetState()
 
-	needsSetup := !currentState.AWSPantherDeploymentRoleDeployed ||
-		!currentState.AWSReadinessBootstrapToolsDeployed ||
-		!currentState.AWSDeploymentRoleUpdaterDeployed
-
-	if needsSetup {
+	if !currentState.IsAWSSetup() {
 		awsSetup, err := aws.NewCloudFormation(ctx, cfg.AWSConfig)
 		if err != nil {
 			return errors.Wrap(err, "failed to initialize AWS CloudFormation")
@@ -194,7 +190,7 @@ func setupAWS(ctx context.Context, cfg *config.Config, stateManager *state.Manag
 		}
 
 		// Deploy Deployment Role Updater if needed
-		if !currentState.AWSDeploymentRoleUpdaterDeployed {
+		if !currentState.AWSPantherDeploymentRoleUpdaterDeployed {
 			log.Println("Deploying deployment role updater...")
 			if err := awsSetup.ApplyDeploymentRoleUpdater(); err != nil {
 				return errors.Wrapf(

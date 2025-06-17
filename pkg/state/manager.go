@@ -101,9 +101,9 @@ func (m *Manager) UpdateAWSSnowflakeBootstrapState(succeeded bool, secretARN str
 	return m.SaveState()
 }
 
-// UpdateAWSDeploymentRoleUpdaterState updates the AWS deployment role updater deployment state
+// UpdateAWSDeploymentRoleUpdaterState updates the AWS Panther deployment role updater deployment state
 func (m *Manager) UpdateAWSDeploymentRoleUpdaterState(deployed bool) error {
-	m.state.AWSDeploymentRoleUpdaterDeployed = deployed
+	m.state.AWSPantherDeploymentRoleUpdaterDeployed = deployed
 	return m.SaveState()
 }
 
