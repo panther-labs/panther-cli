@@ -21,6 +21,7 @@ const (
 		snowflake_account_setup BOOLEAN,
 		snowflake_admin_username TEXT,
 		aws_panther_deployment_role_deployed BOOLEAN,
+		aws_panther_deployment_role_updater_deployed BOOLEAN,
 		aws_readiness_bootstrap_tools_deployed BOOLEAN,
 		aws_readiness_check_succeeded BOOLEAN,
 		aws_readiness_check_results JSON,
@@ -83,6 +84,7 @@ func (d *DB) GetState(configHash string) (*Row, error) {
 			snowflake_account_setup,
 			snowflake_admin_username,
 			aws_panther_deployment_role_deployed,
+			aws_panther_deployment_role_updater_deployed,
 			aws_readiness_bootstrap_tools_deployed,
 			aws_readiness_check_succeeded,
 			aws_readiness_check_results,
@@ -103,6 +105,7 @@ func (d *DB) GetState(configHash string) (*Row, error) {
 		&row.SnowflakeAccountSetup,
 		&row.SnowflakeAdminUsername,
 		&row.AWSPantherDeploymentRoleDeployed,
+		&row.AWSPantherDeploymentRoleUpdaterDeployed,
 		&row.AWSReadinessBootstrapToolsDeployed,
 		&row.AWSReadinessCheckSucceeded,
 		&row.AWSReadinessCheckResults,
@@ -171,6 +174,7 @@ func (d *DB) SaveState(row *Row) error {
 			snowflake_account_setup,
 			snowflake_admin_username,
 			aws_panther_deployment_role_deployed,
+			aws_panther_deployment_role_updater_deployed,
 			aws_readiness_bootstrap_tools_deployed,
 			aws_readiness_check_succeeded,
 			aws_readiness_check_results,
@@ -178,7 +182,7 @@ func (d *DB) SaveState(row *Row) error {
 			aws_snowflake_secret_arn,
 			aws_certificates_requested,
 			aws_certificates_results
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(config_hash) DO UPDATE SET
 			snowflake_account_name = excluded.snowflake_account_name,
 			snowflake_account_url = excluded.snowflake_account_url,
@@ -186,6 +190,7 @@ func (d *DB) SaveState(row *Row) error {
 			snowflake_account_setup = excluded.snowflake_account_setup,
 			snowflake_admin_username = excluded.snowflake_admin_username,
 			aws_panther_deployment_role_deployed = excluded.aws_panther_deployment_role_deployed,
+			aws_panther_deployment_role_updater_deployed = excluded.aws_panther_deployment_role_updater_deployed,
 			aws_readiness_bootstrap_tools_deployed = excluded.aws_readiness_bootstrap_tools_deployed,
 			aws_readiness_check_succeeded = excluded.aws_readiness_check_succeeded,
 			aws_readiness_check_results = excluded.aws_readiness_check_results,
@@ -204,6 +209,7 @@ func (d *DB) SaveState(row *Row) error {
 		row.SnowflakeAccountSetup,
 		row.SnowflakeAdminUsername,
 		row.AWSPantherDeploymentRoleDeployed,
+		row.AWSPantherDeploymentRoleUpdaterDeployed,
 		row.AWSReadinessBootstrapToolsDeployed,
 		row.AWSReadinessCheckSucceeded,
 		row.AWSReadinessCheckResults,
