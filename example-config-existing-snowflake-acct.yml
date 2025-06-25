@@ -1,7 +1,7 @@
 AWSConfig:
-  AccessKeyID: <YOUR AWS ACCESS KEY ID>
-  SecretAccessKey: <YOUR AWS SECRET ACCESS KEY>
-  SessionToken: <YOUR AWS SESSION TOKEN> # This is optional.
+  AccessKeyID: <YOUR AWS ACCESS KEY ID> # This is optional if you are using the default AWS profile.
+  SecretAccessKey: <YOUR AWS SECRET ACCESS KEY> # This is optional if you are using the default AWS profile.
+  SessionToken: <YOUR AWS SESSION TOKEN> # This is optional if you are using the default AWS profile.
   CloudFormationConfig:
     DeploymentRoleName: PantherDeploymentRole # WE RECOMMEND USING THIS VALUE
     IdentityAccountId: <ASK FOR THIS INFORMATION FROM PANTHER>
