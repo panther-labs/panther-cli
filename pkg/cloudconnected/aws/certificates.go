@@ -137,9 +137,13 @@ func (c *CertificateRegistrationHelper) getValidationDetails(
 }
 
 func (c *CertificateRegistrationHelper) RegisterPantherSubdomainCertificate() (CertificateRegistrationResult, error) {
+	pantherSubdomain := c.cfg.AWSConfig.DomainCertificateConfiguration.PantherSubdomain
+	wildcardDomain := "*." + pantherSubdomain
+
 	input := &acm.RequestCertificateInput{
-		DomainName:       aws.String(c.cfg.AWSConfig.DomainCertificateConfiguration.PantherSubdomain),
-		ValidationMethod: types.ValidationMethodDns,
+		DomainName:              aws.String(wildcardDomain),
+		ValidationMethod:        types.ValidationMethodDns,
+		SubjectAlternativeNames: []string{pantherSubdomain},
 	}
 
 	result, err := c.client.RequestCertificate(c.ctx, input)
@@ -147,7 +151,7 @@ func (c *CertificateRegistrationHelper) RegisterPantherSubdomainCertificate() (C
 		return CertificateRegistrationResult{}, errors.Wrapf(
 			err,
 			"failed to request certificate for panther subdomain (%s)",
-			c.cfg.AWSConfig.DomainCertificateConfiguration.PantherSubdomain,
+			pantherSubdomain,
 		)
 	}
 
