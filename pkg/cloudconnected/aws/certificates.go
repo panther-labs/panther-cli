@@ -49,9 +49,6 @@ func NewCertificateRegistrationHelper(
 		return nil, errors.Wrap(err, "failed to create AWS config")
 	}
 
-	// Override region from our config
-	awsCfg.Region = cfg.AWSConfig.Region
-
 	// Create ACM client
 	client := acm.NewFromConfig(awsCfg)
 
@@ -66,7 +63,7 @@ func NewCertificateRegistrationHelper(
 func (c *CertificateRegistrationHelper) getACMClientForRegion(region string) (*acm.Client, error) {
 	awsCfg, err := util.GetAWSConfig(
 		c.ctx,
-		c.cfg.AWSConfig.Region,
+		region,
 		c.cfg.AWSConfig.AccessKeyID,
 		c.cfg.AWSConfig.SecretAccessKey,
 		c.cfg.AWSConfig.SessionToken,
@@ -74,9 +71,6 @@ func (c *CertificateRegistrationHelper) getACMClientForRegion(region string) (*a
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create AWS config")
 	}
-
-	// Override region
-	awsCfg.Region = region
 
 	return acm.NewFromConfig(awsCfg), nil
 }
