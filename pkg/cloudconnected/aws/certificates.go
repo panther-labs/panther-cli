@@ -21,7 +21,7 @@ type CertificateRegistrationHelper struct {
 
 // CertificateValidationDetails contains the DNS record information needed for certificate validation
 type CertificateValidationDetails struct {
-	DomainName  string
+	DomainNames []string
 	RecordName  string
 	RecordValue string
 	RecordType  string
@@ -123,8 +123,14 @@ func (c *CertificateRegistrationHelper) getValidationDetails(
 			return CertificateValidationDetails{}, errors.New("no validation record found")
 		}
 
+		// Collect all domain names from the validation options
+		domainNames := make([]string, len(result.Certificate.DomainValidationOptions))
+		for i, opt := range result.Certificate.DomainValidationOptions {
+			domainNames[i] = aws.ToString(opt.DomainName)
+		}
+
 		return CertificateValidationDetails{
-			DomainName:  aws.ToString(validation.DomainName),
+			DomainNames: domainNames,
 			RecordName:  aws.ToString(validation.ResourceRecord.Name),
 			RecordValue: aws.ToString(validation.ResourceRecord.Value),
 			RecordType:  string(validation.ResourceRecord.Type),

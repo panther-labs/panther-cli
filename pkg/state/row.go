@@ -16,10 +16,10 @@ import (
 
 // CertificateValidationRecord represents the DNS validation details for a certificate
 type CertificateValidationRecord struct {
-	DomainName  string `json:"domain_name"`
-	RecordName  string `json:"record_name"`
-	RecordValue string `json:"record_value"`
-	RecordType  string `json:"record_type"`
+	DomainNames []string `json:"domain_names"`
+	RecordName  string   `json:"record_name"`
+	RecordValue string   `json:"record_value"`
+	RecordType  string   `json:"record_type"`
 }
 
 // CertificateRecord represents a registered certificate and its validation details

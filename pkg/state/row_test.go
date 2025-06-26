@@ -83,7 +83,7 @@ func TestCertificateResults(t *testing.T) {
 		PantherSubdomain: &CertificateRecord{
 			CertificateArn: "arn:aws:acm:region:account:certificate/id",
 			ValidationDetails: CertificateValidationRecord{
-				DomainName:  "test.example.com",
+				DomainNames: []string{"test.example.com"},
 				RecordName:  "_validation.test.example.com",
 				RecordValue: "validation-value",
 				RecordType:  "CNAME",
@@ -111,8 +111,8 @@ func TestCertificateResults(t *testing.T) {
 		assert.Equal(t, results.PantherSubdomain.CertificateArn, deserializedResults.PantherSubdomain.CertificateArn)
 		assert.Equal(
 			t,
-			results.PantherSubdomain.ValidationDetails.DomainName,
-			deserializedResults.PantherSubdomain.ValidationDetails.DomainName,
+			results.PantherSubdomain.ValidationDetails.DomainNames,
+			deserializedResults.PantherSubdomain.ValidationDetails.DomainNames,
 		)
 		assert.Equal(
 			t,

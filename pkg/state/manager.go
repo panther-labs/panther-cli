@@ -120,7 +120,7 @@ func (m *Manager) UpdateCertificateState(
 	certRecord := &CertificateRecord{
 		CertificateArn: result.CertificateArn,
 		ValidationDetails: CertificateValidationRecord{
-			DomainName:  result.ValidationDetails.DomainName,
+			DomainNames: result.ValidationDetails.DomainNames,
 			RecordName:  result.ValidationDetails.RecordName,
 			RecordValue: result.ValidationDetails.RecordValue,
 			RecordType:  result.ValidationDetails.RecordType,
