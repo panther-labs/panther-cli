@@ -51,8 +51,12 @@ func main() {
 	}
 
 	// Setup the Datalake if not already done. Error handling is done in the function.
-	if err := setupDatalake(ctx, cfg, stateManager); err != nil {
-		log.Fatalf("failed to setup datalake: %v\n", err)
+	if !a.SkipDatalakeSetup {
+		if err := setupDatalake(ctx, cfg, stateManager); err != nil {
+			log.Fatalf("failed to setup datalake: %v\n", err)
+		}
+	} else {
+		log.Println("Skipping datalake setup - --skip-datalake-setup specified")
 	}
 
 	// We allow users to skip the readiness check, whether it ran successfully or not.
