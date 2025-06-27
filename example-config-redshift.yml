@@ -20,3 +20,4 @@ PantherAccountConfig:
 
 # Leave this empty - this just indicates we're using Redshift as the datalake. We don't require additional fields.
 RedshiftConfig:
+  Enabled: true
