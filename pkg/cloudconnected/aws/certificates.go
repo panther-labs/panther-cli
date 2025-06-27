@@ -21,7 +21,7 @@ type CertificateRegistrationHelper struct {
 
 // CertificateValidationDetails contains the DNS record information needed for certificate validation
 type CertificateValidationDetails struct {
-	DomainName  string
+	DomainNames []string
 	RecordName  string
 	RecordValue string
 	RecordType  string
@@ -49,9 +49,6 @@ func NewCertificateRegistrationHelper(
 		return nil, errors.Wrap(err, "failed to create AWS config")
 	}
 
-	// Override region from our config
-	awsCfg.Region = cfg.AWSConfig.Region
-
 	// Create ACM client
 	client := acm.NewFromConfig(awsCfg)
 
@@ -66,7 +63,7 @@ func NewCertificateRegistrationHelper(
 func (c *CertificateRegistrationHelper) getACMClientForRegion(region string) (*acm.Client, error) {
 	awsCfg, err := util.GetAWSConfig(
 		c.ctx,
-		c.cfg.AWSConfig.Region,
+		region,
 		c.cfg.AWSConfig.AccessKeyID,
 		c.cfg.AWSConfig.SecretAccessKey,
 		c.cfg.AWSConfig.SessionToken,
@@ -74,9 +71,6 @@ func (c *CertificateRegistrationHelper) getACMClientForRegion(region string) (*a
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create AWS config")
 	}
-
-	// Override region
-	awsCfg.Region = region
 
 	return acm.NewFromConfig(awsCfg), nil
 }
@@ -129,8 +123,14 @@ func (c *CertificateRegistrationHelper) getValidationDetails(
 			return CertificateValidationDetails{}, errors.New("no validation record found")
 		}
 
+		// Collect all domain names from the validation options
+		domainNames := make([]string, len(result.Certificate.DomainValidationOptions))
+		for i, opt := range result.Certificate.DomainValidationOptions {
+			domainNames[i] = aws.ToString(opt.DomainName)
+		}
+
 		return CertificateValidationDetails{
-			DomainName:  aws.ToString(validation.DomainName),
+			DomainNames: domainNames,
 			RecordName:  aws.ToString(validation.ResourceRecord.Name),
 			RecordValue: aws.ToString(validation.ResourceRecord.Value),
 			RecordType:  string(validation.ResourceRecord.Type),
@@ -143,9 +143,13 @@ func (c *CertificateRegistrationHelper) getValidationDetails(
 }
 
 func (c *CertificateRegistrationHelper) RegisterPantherSubdomainCertificate() (CertificateRegistrationResult, error) {
+	pantherSubdomain := c.cfg.AWSConfig.DomainCertificateConfiguration.PantherSubdomain
+	wildcardDomain := "*." + pantherSubdomain
+
 	input := &acm.RequestCertificateInput{
-		DomainName:       aws.String(c.cfg.AWSConfig.DomainCertificateConfiguration.PantherSubdomain),
-		ValidationMethod: types.ValidationMethodDns,
+		DomainName:              aws.String(wildcardDomain),
+		ValidationMethod:        types.ValidationMethodDns,
+		SubjectAlternativeNames: []string{pantherSubdomain},
 	}
 
 	result, err := c.client.RequestCertificate(c.ctx, input)
@@ -153,7 +157,7 @@ func (c *CertificateRegistrationHelper) RegisterPantherSubdomainCertificate() (C
 		return CertificateRegistrationResult{}, errors.Wrapf(
 			err,
 			"failed to request certificate for panther subdomain (%s)",
-			c.cfg.AWSConfig.DomainCertificateConfiguration.PantherSubdomain,
+			pantherSubdomain,
 		)
 	}
 

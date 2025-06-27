@@ -30,14 +30,21 @@ func setupCertificates(ctx context.Context, cfg *config.Config, stateManager *st
 			return errors.Wrap(err, "failed to update panther certificate state")
 		}
 
-		// Register wildcard certificate
-		wildcardResult, err := certHelper.RegisterWildcardSubdomainCertificate()
-		if err != nil {
-			return errors.Wrap(err, "failed to register wildcard certificate")
-		}
-		log.Printf("Registered wildcard certificate:\n%s\n", pp.Sprintln(wildcardResult))
-		if err := stateManager.UpdateCertificateState("wildcard", wildcardResult, false); err != nil {
-			return errors.Wrap(err, "failed to update wildcard certificate state")
+		if cfg.AWSConfig.Region != "us-east-1" {
+			// Register wildcard certificate
+			wildcardResult, err := certHelper.RegisterWildcardSubdomainCertificate()
+			if err != nil {
+				return errors.Wrap(err, "failed to register wildcard certificate")
+			}
+			log.Printf("Registered wildcard certificate:\n%s\n", pp.Sprintln(wildcardResult))
+			if err := stateManager.UpdateCertificateState("wildcard", wildcardResult, false); err != nil {
+				return errors.Wrap(err, "failed to update wildcard certificate state")
+			}
+		} else {
+			log.Printf("Using panther certificate as wildcard certificate in us-east-1 region\n")
+			if err := stateManager.UpdateCertificateState("wildcard", pantherResult, false); err != nil {
+				return errors.Wrap(err, "failed to update wildcard certificate state")
+			}
 		}
 
 		// Print DNS validation instructions
@@ -68,7 +75,7 @@ func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManage
 				aws.CertificateRegistrationResult{
 					CertificateArn: certs.PantherSubdomain.CertificateArn,
 					ValidationDetails: aws.CertificateValidationDetails{
-						DomainName:  certs.PantherSubdomain.ValidationDetails.DomainName,
+						DomainNames: certs.PantherSubdomain.ValidationDetails.DomainNames,
 						RecordName:  certs.PantherSubdomain.ValidationDetails.RecordName,
 						RecordValue: certs.PantherSubdomain.ValidationDetails.RecordValue,
 						RecordType:  certs.PantherSubdomain.ValidationDetails.RecordType,
@@ -94,7 +101,7 @@ func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManage
 				aws.CertificateRegistrationResult{
 					CertificateArn: certs.WildcardSubdomain.CertificateArn,
 					ValidationDetails: aws.CertificateValidationDetails{
-						DomainName:  certs.WildcardSubdomain.ValidationDetails.DomainName,
+						DomainNames: certs.WildcardSubdomain.ValidationDetails.DomainNames,
 						RecordName:  certs.WildcardSubdomain.ValidationDetails.RecordName,
 						RecordValue: certs.WildcardSubdomain.ValidationDetails.RecordValue,
 						RecordType:  certs.WildcardSubdomain.ValidationDetails.RecordType,
@@ -122,9 +129,13 @@ func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManage
 
 func printDNSValidationInstructions(certs state.CertificateResults) {
 	if certs.PantherSubdomain != nil {
+		domainName := "unknown"
+		if len(certs.PantherSubdomain.ValidationDetails.DomainNames) > 0 {
+			domainName = certs.PantherSubdomain.ValidationDetails.DomainNames[0]
+		}
 		log.Printf(
 			"For Panther Subdomain (%s), create a DNS record with the following information:\n",
-			certs.PantherSubdomain.ValidationDetails.DomainName,
+			domainName,
 		)
 		log.Printf("  Record Type:  %s\n", certs.PantherSubdomain.ValidationDetails.RecordType)
 		log.Printf("  Record Name:  %s\n", certs.PantherSubdomain.ValidationDetails.RecordName)
@@ -132,9 +143,13 @@ func printDNSValidationInstructions(certs state.CertificateResults) {
 	}
 
 	if certs.WildcardSubdomain != nil {
+		domainName := "unknown"
+		if len(certs.WildcardSubdomain.ValidationDetails.DomainNames) > 0 {
+			domainName = certs.WildcardSubdomain.ValidationDetails.DomainNames[0]
+		}
 		log.Printf(
 			"For Wildcard Certificate (%s), create a DNS record with the following information:\n",
-			certs.WildcardSubdomain.ValidationDetails.DomainName,
+			domainName,
 		)
 		log.Printf("  Record Type:  %s\n", certs.WildcardSubdomain.ValidationDetails.RecordType)
 		log.Printf("  Record Name:  %s\n", certs.WildcardSubdomain.ValidationDetails.RecordName)

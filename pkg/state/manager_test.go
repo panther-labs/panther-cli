@@ -256,7 +256,7 @@ func TestStateUpdates(t *testing.T) {
 		certResult := aws.CertificateRegistrationResult{
 			CertificateArn: "arn:aws:acm:us-west-2:123456789012:certificate/1234-5678-9012",
 			ValidationDetails: aws.CertificateValidationDetails{
-				DomainName:  "test.example.com",
+				DomainNames: []string{"test.example.com"},
 				RecordName:  "_1234.test.example.com",
 				RecordValue: "verification-value-1234",
 				RecordType:  "CNAME",
@@ -273,8 +273,8 @@ func TestStateUpdates(t *testing.T) {
 		assert.Equal(t, certResult.CertificateArn, state.AWSCertificatesResults.PantherSubdomain.CertificateArn)
 		assert.Equal(
 			t,
-			certResult.ValidationDetails.DomainName,
-			state.AWSCertificatesResults.PantherSubdomain.ValidationDetails.DomainName,
+			certResult.ValidationDetails.DomainNames,
+			state.AWSCertificatesResults.PantherSubdomain.ValidationDetails.DomainNames,
 		)
 		assert.Equal(
 			t,
@@ -297,7 +297,7 @@ func TestStateUpdates(t *testing.T) {
 		wildcardResult := aws.CertificateRegistrationResult{
 			CertificateArn: "arn:aws:acm:us-west-2:123456789012:certificate/9876-5432-1098",
 			ValidationDetails: aws.CertificateValidationDetails{
-				DomainName:  "*.example.com",
+				DomainNames: []string{"*.example.com"},
 				RecordName:  "_9876.example.com",
 				RecordValue: "verification-value-9876",
 				RecordType:  "CNAME",
@@ -313,8 +313,8 @@ func TestStateUpdates(t *testing.T) {
 		assert.Equal(t, wildcardResult.CertificateArn, state.AWSCertificatesResults.WildcardSubdomain.CertificateArn)
 		assert.Equal(
 			t,
-			wildcardResult.ValidationDetails.DomainName,
-			state.AWSCertificatesResults.WildcardSubdomain.ValidationDetails.DomainName,
+			wildcardResult.ValidationDetails.DomainNames,
+			state.AWSCertificatesResults.WildcardSubdomain.ValidationDetails.DomainNames,
 		)
 		assert.True(t, state.AWSCertificatesResults.WildcardSubdomain.IsIssued)
 
