@@ -15,6 +15,7 @@ type args struct {
 	ShowLastRun             bool   `arg:"--show-last-run"            help:"Show the results of the last run"`
 	Clean                   bool   `arg:"--clean"                    help:"Remove the state database file"`
 	SkipAWSReadinessCheck   bool   `arg:"--skip-aws-readiness-check" help:"Skip the AWS readiness check"`
+	SkipDatalakeSetup       bool   `arg:"--skip-datalake-setup"      help:"Skip the datalake setup entirely"`
 }
 
 // validateArgs checks that the arguments passed to the program
