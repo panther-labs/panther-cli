@@ -70,6 +70,10 @@ func NewConfigFromPath(path string) (*Config, error) {
 	// Setup dependent fields
 	cfg.setupAWSConfig()
 
+	if cfg.SnowflakeConfig == nil && cfg.RedshiftConfig == nil {
+		return nil, errors.New("no Snowflake or Redshift config found - is the indentation correct in your config?")
+	}
+
 	if cfg.IsSnowflake() {
 		log.Println("Setting up Snowflake config")
 		if err := cfg.setupSnowflakeConfig(); err != nil {
