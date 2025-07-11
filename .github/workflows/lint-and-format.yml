@@ -73,3 +73,5 @@ jobs:
 
       - name: Run tests
         run: go test -v ./pkg/...
+        env:
+          CGO_ENABLED: 0

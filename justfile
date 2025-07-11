@@ -10,7 +10,7 @@ alias tv := test-verbose
 alias tc := test-coverage
 
 build: copy-config
-    go build -o ./bin/panther-cloud-connected-setup/panther-cloud-connected-setup ./cmd/panther-cloud-connected-setup/
+    CGO_ENABLED=0 go build -o ./bin/panther-cloud-connected-setup/panther-cloud-connected-setup ./cmd/panther-cloud-connected-setup/
 
 copy-config:
     #!/usr/bin/env sh
@@ -58,12 +58,12 @@ test:
 
 # Run all tests with verbose output
 test-verbose:
-    go test -v ./pkg/...
+    CGO_ENABLED=0 go test -v ./pkg/...
 
 # Run tests with coverage report
 test-coverage:
-    go test -cover ./pkg/...
+    CGO_ENABLED=0 go test -cover ./pkg/...
 
 # Run tests for a specific package (usage: just test-pkg pkg/state)
 test-pkg pkg:
-    go test -v ./{{pkg}}/...
+    CGO_ENABLED=0 go test -v ./{{pkg}}/...

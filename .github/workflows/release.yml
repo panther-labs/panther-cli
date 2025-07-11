@@ -36,10 +36,6 @@ jobs:
           go-version: '>=1.24'
           cache: true
 
-      - name: GCC multilib
-        run: |
-          sudo apt-get install gcc-multilib g++-multilib
-
       - name: Install dependencies
         run: |
           go mod download

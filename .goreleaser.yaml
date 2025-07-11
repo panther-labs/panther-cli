@@ -14,7 +14,7 @@ builds:
     binary: panther-cloud-connected-setup
     main: ./cmd/panther-cloud-connected-setup
     env:
-      - CGO_ENABLED=1
+      - CGO_ENABLED=0
     goos:
       - linux
       - windows

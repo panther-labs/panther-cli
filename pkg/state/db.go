@@ -5,7 +5,8 @@ import (
 	"log"
 	"os"
 
-	_ "github.com/mattn/go-sqlite3" // we do not support any other SQL database
+	_ "github.com/ncruces/go-sqlite3/driver" // sqlite only
+	_ "github.com/ncruces/go-sqlite3/embed"  // sqlite only
 	"github.com/pkg/errors"
 )
 
