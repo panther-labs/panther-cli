@@ -249,13 +249,16 @@ func (c *CertificateRegistrationHelper) RegisterValidationDomains(validationDeta
 		return nil // Skip if auto-registration is disabled
 	}
 
-	log.Printf("Auto-registering validation domain: %s\n", validationDetails.RecordName)
+	log.Printf("Attempting to auto-register DNS validation record: %s -> %s\n", 
+		validationDetails.RecordName, validationDetails.RecordValue)
 
 	// Find the hosted zone for the domain
 	hostedZoneID, err := c.findHostedZoneForDomain(validationDetails.RecordName)
 	if err != nil {
-		return errors.Wrap(err, "failed to find hosted zone for validation domain")
+		return errors.Wrapf(err, "failed to find Route 53 hosted zone for domain %s. Ensure the domain is hosted in Route 53 in this AWS account", validationDetails.RecordName)
 	}
+
+	log.Printf("Found hosted zone %s for domain %s\n", hostedZoneID, validationDetails.RecordName)
 
 	// Create the DNS record
 	err = c.createDNSRecord(hostedZoneID, validationDetails)
@@ -263,7 +266,8 @@ func (c *CertificateRegistrationHelper) RegisterValidationDomains(validationDeta
 		return errors.Wrap(err, "failed to create DNS validation record")
 	}
 
-	log.Printf("Successfully created DNS validation record for %s\n", validationDetails.RecordName)
+	log.Printf("Successfully created DNS validation record %s (%s) -> %s\n", 
+		validationDetails.RecordName, validationDetails.RecordType, validationDetails.RecordValue)
 	return nil
 }
 

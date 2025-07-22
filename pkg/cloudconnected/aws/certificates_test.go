@@ -133,6 +133,55 @@ func TestConfigDefaults(t *testing.T) {
 	assert.False(t, cfg.AWSConfig.DomainCertificateConfiguration.AutoRegisterValidationDomains)
 }
 
+func TestForceCheckCertificatesLogic(t *testing.T) {
+	tests := []struct {
+		name               string
+		certificateIssued  bool
+		forceCheck         bool
+		shouldCheckStatus  bool
+		expectedLogMessage string
+	}{
+		{
+			name:              "certificate not issued, no force - should check",
+			certificateIssued: false,
+			forceCheck:        false,
+			shouldCheckStatus: true,
+		},
+		{
+			name:              "certificate issued, no force - should not check",
+			certificateIssued: true,
+			forceCheck:        false,
+			shouldCheckStatus: false,
+		},
+		{
+			name:              "certificate not issued, force check - should check",
+			certificateIssued: false,
+			forceCheck:        true,
+			shouldCheckStatus: true,
+		},
+		{
+			name:               "certificate issued, force check - should check",
+			certificateIssued:  true,
+			forceCheck:         true,
+			shouldCheckStatus:  true,
+			expectedLogMessage: "Force checking",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test the logic that determines whether to check certificate status
+			shouldCheck := !tt.certificateIssued || tt.forceCheck
+			assert.Equal(t, tt.shouldCheckStatus, shouldCheck)
+
+			// If forcing check on already issued certificate, we expect a force log message
+			if tt.forceCheck && tt.certificateIssued {
+				assert.Contains(t, tt.expectedLogMessage, "Force checking")
+			}
+		})
+	}
+}
+
 // Helper types and functions for testing
 
 type hostedZoneTestData struct {

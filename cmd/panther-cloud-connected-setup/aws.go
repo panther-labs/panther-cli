@@ -69,7 +69,7 @@ func setupCertificates(ctx context.Context, cfg *config.Config, stateManager *st
 	return nil
 }
 
-func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManager *state.Manager) error {
+func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManager *state.Manager, forceCheck bool) error {
 	certHelper, err := aws.NewCertificateRegistrationHelper(ctx, cfg)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize certificate registration helper")
@@ -79,11 +79,16 @@ func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManage
 	certs := state.AWSCertificatesResults
 
 	// Check panther subdomain certificate
-	if certs.PantherSubdomain != nil && !certs.PantherSubdomain.IsIssued {
+	if certs.PantherSubdomain != nil && (!certs.PantherSubdomain.IsIssued || forceCheck) {
+		if forceCheck && certs.PantherSubdomain.IsIssued {
+			log.Println("Force checking panther subdomain certificate status (already marked as issued)")
+		}
+
 		issued, err := certHelper.IsCertificateIssued(certs.PantherSubdomain.CertificateArn, false)
 		if err != nil {
 			return errors.Wrap(err, "failed to check panther subdomain certificate status")
 		}
+
 		if issued {
 			if err := stateManager.UpdateCertificateState(
 				"panther",
@@ -101,15 +106,22 @@ func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManage
 				return errors.Wrap(err, "failed to update panther certificate state")
 			}
 			log.Println("Panther subdomain certificate has been issued")
+		} else if forceCheck {
+			log.Println("Panther subdomain certificate is still pending issuance")
 		}
 	}
 
 	// Check wildcard certificate
-	if certs.WildcardSubdomain != nil && !certs.WildcardSubdomain.IsIssued {
+	if certs.WildcardSubdomain != nil && (!certs.WildcardSubdomain.IsIssued || forceCheck) {
+		if forceCheck && certs.WildcardSubdomain.IsIssued {
+			log.Println("Force checking wildcard certificate status (already marked as issued)")
+		}
+
 		issued, err := certHelper.IsCertificateIssued(certs.WildcardSubdomain.CertificateArn, true)
 		if err != nil {
 			return errors.Wrap(err, "failed to check wildcard certificate status")
 		}
+
 		if issued {
 			if err := stateManager.UpdateCertificateState(
 				"wildcard",
@@ -127,12 +139,18 @@ func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManage
 				return errors.Wrap(err, "failed to update wildcard certificate state")
 			}
 			log.Println("Wildcard certificate has been issued")
+		} else if forceCheck {
+			log.Println("Wildcard certificate is still pending issuance")
 		}
 	}
 
+	// Refresh state after potential updates
+	state = stateManager.GetState()
+	certs = state.AWSCertificatesResults
+
 	// If any certificates are not issued, print the DNS validation instructions
-	if (!certs.PantherSubdomain.IsIssued && certs.PantherSubdomain != nil) ||
-		(!certs.WildcardSubdomain.IsIssued && certs.WildcardSubdomain != nil) {
+	if (certs.PantherSubdomain != nil && !certs.PantherSubdomain.IsIssued) ||
+		(certs.WildcardSubdomain != nil && !certs.WildcardSubdomain.IsIssued) {
 		log.Println(
 			"Some certificates are still pending validation. Please ensure you have created the following DNS records:",
 		)

@@ -166,19 +166,27 @@ func (r *Row) PrettyPrint(cfg *config.Config) {
 		if output.PantherCertificate != nil {
 			log.Printf("  Panther Subdomain Certificate:\n")
 			log.Printf("    ARN: %s\n", output.PantherCertificate.CertificateArn)
-			// Get certificate issuance status directly from the struct
 			log.Printf("    Issued: %v\n", output.PantherCertificate.IsIssued)
-			// Optionally print validation details if needed
-			log.Printf("    Validation Details: %+v\n", output.PantherCertificate.ValidationDetails)
+			log.Printf("    Validation Details:\n")
+			log.Printf("      Record Type: %s\n", output.PantherCertificate.ValidationDetails.RecordType)
+			log.Printf("      Record Name: %s\n", output.PantherCertificate.ValidationDetails.RecordName)
+			log.Printf("      Record Value: %s\n", output.PantherCertificate.ValidationDetails.RecordValue)
+			if len(output.PantherCertificate.ValidationDetails.DomainNames) > 0 {
+				log.Printf("      Domain Names: %v\n", output.PantherCertificate.ValidationDetails.DomainNames)
+			}
 		}
 
 		if output.WildcardCertificate != nil {
 			log.Printf("  Wildcard Certificate:\n")
 			log.Printf("    ARN: %s\n", output.WildcardCertificate.CertificateArn)
-			// Get certificate issuance status directly from the struct
 			log.Printf("    Issued: %v\n", output.WildcardCertificate.IsIssued)
-			// Optionally print validation details if needed
-			log.Printf("    Validation Details: %+v\n", output.WildcardCertificate.ValidationDetails)
+			log.Printf("    Validation Details:\n")
+			log.Printf("      Record Type: %s\n", output.WildcardCertificate.ValidationDetails.RecordType)
+			log.Printf("      Record Name: %s\n", output.WildcardCertificate.ValidationDetails.RecordName)
+			log.Printf("      Record Value: %s\n", output.WildcardCertificate.ValidationDetails.RecordValue)
+			if len(output.WildcardCertificate.ValidationDetails.DomainNames) > 0 {
+				log.Printf("      Domain Names: %v\n", output.WildcardCertificate.ValidationDetails.DomainNames)
+			}
 		}
 	}
 }
