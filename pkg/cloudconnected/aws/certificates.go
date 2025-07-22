@@ -3,20 +3,24 @@ package aws
 import (
 	"context"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/acm"
 	"github.com/aws/aws-sdk-go-v2/service/acm/types"
+	"github.com/aws/aws-sdk-go-v2/service/route53"
+	route53types "github.com/aws/aws-sdk-go-v2/service/route53/types"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
 	"github.com/panther-labs/panther-cli/pkg/util"
 	"github.com/pkg/errors"
 )
 
 type CertificateRegistrationHelper struct {
-	ctx    context.Context
-	cfg    *config.Config
-	client *acm.Client
+	ctx           context.Context
+	cfg           *config.Config
+	client        *acm.Client
+	route53Client *route53.Client
 }
 
 // CertificateValidationDetails contains the DNS record information needed for certificate validation
@@ -52,10 +56,14 @@ func NewCertificateRegistrationHelper(
 	// Create ACM client
 	client := acm.NewFromConfig(awsCfg)
 
+	// Create Route 53 client
+	route53Client := route53.NewFromConfig(awsCfg)
+
 	return &CertificateRegistrationHelper{
-		ctx:    ctx,
-		cfg:    cfg,
-		client: client,
+		ctx:           ctx,
+		cfg:           cfg,
+		client:        client,
+		route53Client: route53Client,
 	}, nil
 }
 
@@ -233,4 +241,102 @@ func (c *CertificateRegistrationHelper) IsCertificateIssued(certificateArn strin
 
 	// Check if certificate status is ISSUED
 	return result.Certificate.Status == types.CertificateStatusIssued, nil
+}
+
+// RegisterValidationDomains automatically creates DNS records for certificate validation
+func (c *CertificateRegistrationHelper) RegisterValidationDomains(validationDetails CertificateValidationDetails) error {
+	if !c.cfg.AWSConfig.DomainCertificateConfiguration.AutoRegisterValidationDomains {
+		return nil // Skip if auto-registration is disabled
+	}
+
+	log.Printf("Auto-registering validation domain: %s\n", validationDetails.RecordName)
+
+	// Find the hosted zone for the domain
+	hostedZoneID, err := c.findHostedZoneForDomain(validationDetails.RecordName)
+	if err != nil {
+		return errors.Wrap(err, "failed to find hosted zone for validation domain")
+	}
+
+	// Create the DNS record
+	err = c.createDNSRecord(hostedZoneID, validationDetails)
+	if err != nil {
+		return errors.Wrap(err, "failed to create DNS validation record")
+	}
+
+	log.Printf("Successfully created DNS validation record for %s\n", validationDetails.RecordName)
+	return nil
+}
+
+// findHostedZoneForDomain finds the Route 53 hosted zone for a given domain
+func (c *CertificateRegistrationHelper) findHostedZoneForDomain(domain string) (string, error) {
+	// Remove trailing dot if present
+	domain = strings.TrimSuffix(domain, ".")
+
+	// List all hosted zones
+	input := &route53.ListHostedZonesInput{}
+	result, err := c.route53Client.ListHostedZones(c.ctx, input)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to list hosted zones")
+	}
+
+	// Find the most specific zone that matches the domain
+	var bestMatch string
+	var bestMatchLength int
+
+	for _, zone := range result.HostedZones {
+		zoneName := strings.TrimSuffix(aws.ToString(zone.Name), ".")
+
+		// Check if domain ends with the zone name
+		if domain == zoneName || strings.HasSuffix(domain, "."+zoneName) {
+			if len(zoneName) > bestMatchLength {
+				bestMatch = aws.ToString(zone.Id)
+				bestMatchLength = len(zoneName)
+			}
+		}
+	}
+
+	if bestMatch == "" {
+		return "", errors.Errorf("no hosted zone found for domain %s", domain)
+	}
+
+	// Clean the hosted zone ID (remove /hostedzone/ prefix if present)
+	bestMatch = strings.TrimPrefix(bestMatch, "/hostedzone/")
+
+	return bestMatch, nil
+}
+
+// createDNSRecord creates a DNS record in Route 53 for certificate validation
+func (c *CertificateRegistrationHelper) createDNSRecord(hostedZoneID string, validationDetails CertificateValidationDetails) error {
+	// Prepare the change batch
+	change := &route53types.Change{
+		Action: route53types.ChangeActionUpsert,
+		ResourceRecordSet: &route53types.ResourceRecordSet{
+			Name: aws.String(validationDetails.RecordName),
+			Type: route53types.RRType(validationDetails.RecordType),
+			TTL:  aws.Int64(300), // 5 minutes TTL for validation records
+			ResourceRecords: []route53types.ResourceRecord{
+				{
+					Value: aws.String(validationDetails.RecordValue),
+				},
+			},
+		},
+	}
+
+	changeBatch := &route53types.ChangeBatch{
+		Comment: aws.String("Certificate validation record created by panther-cli"),
+		Changes: []route53types.Change{*change},
+	}
+
+	// Create the change request
+	input := &route53.ChangeResourceRecordSetsInput{
+		HostedZoneId: aws.String(hostedZoneID),
+		ChangeBatch:  changeBatch,
+	}
+
+	_, err := c.route53Client.ChangeResourceRecordSets(c.ctx, input)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create DNS record %s", validationDetails.RecordName)
+	}
+
+	return nil
 }

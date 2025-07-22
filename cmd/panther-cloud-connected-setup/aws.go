@@ -9,6 +9,7 @@ import (
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/config"
 	"github.com/panther-labs/panther-cli/pkg/cloudconnected/panther"
 	"github.com/panther-labs/panther-cli/pkg/state"
+	"github.com/panther-labs/panther-cli/pkg/util"
 	"github.com/pkg/errors"
 )
 
@@ -26,6 +27,13 @@ func setupCertificates(ctx context.Context, cfg *config.Config, stateManager *st
 			return errors.Wrap(err, "failed to register panther subdomain certificate")
 		}
 		log.Printf("Registered panther subdomain certificate:\n%s\n", pp.Sprintln(pantherResult))
+
+		// Attempt to auto-register validation domains
+		if err := certHelper.RegisterValidationDomains(pantherResult.ValidationDetails); err != nil {
+			util.LogWarnf("Failed to auto-register validation domains for panther certificate: %v", err)
+			util.LogWarnln("You will need to manually create the DNS validation records.")
+		}
+
 		if err := stateManager.UpdateCertificateState("panther", pantherResult, false); err != nil {
 			return errors.Wrap(err, "failed to update panther certificate state")
 		}
@@ -37,6 +45,13 @@ func setupCertificates(ctx context.Context, cfg *config.Config, stateManager *st
 				return errors.Wrap(err, "failed to register wildcard certificate")
 			}
 			log.Printf("Registered wildcard certificate:\n%s\n", pp.Sprintln(wildcardResult))
+
+			// Attempt to auto-register validation domains for wildcard certificate
+			if err := certHelper.RegisterValidationDomains(wildcardResult.ValidationDetails); err != nil {
+				util.LogWarnf("Failed to auto-register validation domains for wildcard certificate: %v", err)
+				util.LogWarnln("You will need to manually create the DNS validation records.")
+			}
+
 			if err := stateManager.UpdateCertificateState("wildcard", wildcardResult, false); err != nil {
 				return errors.Wrap(err, "failed to update wildcard certificate state")
 			}

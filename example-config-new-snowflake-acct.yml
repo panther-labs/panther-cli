@@ -8,6 +8,7 @@ AWSConfig:
     OpsAccountId: <ASK FOR THIS INFORMATION FROM PANTHER>
   DomainCertificateConfiguration:
     PantherSubdomain: panther.yourdomain.com # THIS IS AN EXAMPLE, CHANGE IT TO YOUR DOMAIN
+    AutoRegisterValidationDomains: false # Set to true to automatically create DNS validation records in Route 53 (requires domain hosted in same AWS account)
 
 PantherAccountConfig:
   DesiredAccountName: <YOUR PREFERRED PANTHER ACCOUNT NAME> # shown in Panther UI - "My Cool Panther Account"
