@@ -80,7 +80,7 @@ jobs:
         run: git push origin $NEW_TAG
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@2ff5850a92645f728d659129e0870bfde2851d78
+        uses: goreleaser/goreleaser-action@35b9a27f96d11adbbf695207d0787778ad5be891
         with:
           distribution: goreleaser
           version: latest
