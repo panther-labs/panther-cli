@@ -21,7 +21,6 @@ var schemaBytes []byte
 type Config struct {
 	AWSConfig            AWSConfig            `yaml:"AWSConfig"            validate:"required"`
 	SnowflakeConfig      *SnowflakeConfig     `yaml:"SnowflakeConfig"`
-	RedshiftConfig       *RedshiftConfig      `yaml:"RedshiftConfig"`
 	PantherAccountConfig PantherAccountConfig `yaml:"PantherAccountConfig" validate:"required"`
 }
 
@@ -29,16 +28,8 @@ func (c *Config) IsSnowflake() bool {
 	return c.SnowflakeConfig != nil
 }
 
-func (c *Config) IsRedshift() bool {
-	// Redshift doesn't actually have any config. This isn't ideal
-	return !c.IsSnowflake()
-}
-
 func (c *Config) GetDatalakeType() string {
-	if c.IsSnowflake() {
-		return "Snowflake"
-	}
-	return "Redshift"
+	return "Snowflake"
 }
 
 func NewConfigFromPath(path string) (*Config, error) {
@@ -70,8 +61,8 @@ func NewConfigFromPath(path string) (*Config, error) {
 	// Setup dependent fields
 	cfg.setupAWSConfig()
 
-	if cfg.SnowflakeConfig == nil && cfg.RedshiftConfig == nil {
-		return nil, errors.New("no Snowflake or Redshift config found - is the indentation correct in your config?")
+	if cfg.SnowflakeConfig == nil {
+		return nil, errors.New("no Snowflake config found - is the indentation correct in your config?")
 	}
 
 	if cfg.IsSnowflake() {
@@ -79,15 +70,13 @@ func NewConfigFromPath(path string) (*Config, error) {
 		if err := cfg.setupSnowflakeConfig(); err != nil {
 			return nil, errors.Wrapf(err, "failed during Snowflake config setup")
 		}
-	} else {
-		log.Println("Setting up Redshift config")
 	}
 
 	if err := cfg.validateConfigStruct(); err != nil {
 		return nil, errors.Wrapf(err, "config validation failed")
 	}
 
-	if cfg.IsSnowflake() && cfg.IsRedshift() {
+	if cfg.IsSnowflake() {
 		log.Fatalf(
 			"This configuration is in an impossible state. Please contact your Panther support team and share your config file.",
 		)
