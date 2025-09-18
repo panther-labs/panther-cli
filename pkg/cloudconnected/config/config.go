@@ -76,11 +76,12 @@ func NewConfigFromPath(path string) (*Config, error) {
 		return nil, errors.Wrapf(err, "config validation failed")
 	}
 
-	if cfg.IsSnowflake() {
-		log.Fatalf(
-			"This configuration is in an impossible state. Please contact your Panther support team and share your config file.",
-		)
-	}
+	// TODO: When we add more datastores, we want to check that no two are configured at the same time
+	//if cfg.IsSnowflake() && cfg.IsSomethingElse() {
+	//	log.Fatalf(
+	//		"This configuration is in an impossible state. Please contact your Panther support team and share your config file.",
+	//	)
+	//}
 
 	log.Printf("Config loaded and validated successfully from '%s'", path)
 	return cfg, nil
