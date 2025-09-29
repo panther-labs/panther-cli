@@ -35,8 +35,10 @@ func TestCertificateRegistrationHelper_RegisterValidationDomains_Disabled(t *tes
 	}
 
 	// Should not attempt registration when disabled
-	err := helper.RegisterValidationDomains(validationDetails)
+	autoRegResult, err := helper.RegisterValidationDomains(validationDetails)
 	require.NoError(t, err)
+	assert.False(t, autoRegResult.Attempted)
+	assert.False(t, autoRegResult.Succeeded)
 }
 
 func TestFindHostedZoneForDomain(t *testing.T) {

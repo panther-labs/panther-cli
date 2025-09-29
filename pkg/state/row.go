@@ -24,9 +24,11 @@ type CertificateValidationRecord struct {
 
 // CertificateRecord represents a registered certificate and its validation details
 type CertificateRecord struct {
-	CertificateArn    string                      `json:"certificate_arn"`
-	ValidationDetails CertificateValidationRecord `json:"validation_details"`
-	IsIssued          bool                        `json:"is_issued"`
+	CertificateArn            string                      `json:"certificate_arn"`
+	ValidationDetails         CertificateValidationRecord `json:"validation_details"`
+	IsIssued                  bool                        `json:"is_issued"`
+	AutoRegistrationAttempted bool                        `json:"auto_registration_attempted"`
+	AutoRegistrationSucceeded bool                        `json:"auto_registration_succeeded"`
 }
 
 // CertificateResults stores the results of certificate registration
