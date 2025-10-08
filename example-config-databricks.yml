@@ -19,5 +19,5 @@ PantherAccountConfig:
   IpAddressAllowList: [] # A list of IP addresses formatted as CIDR blocks that are allowed to access the Panther UI.
 
 # Leave this empty - this just indicates we're using Databricks as the datalake. We don't require additional fields.
-DataBricksConfig:
+DatabricksConfig:
   Enabled: true
