@@ -187,6 +187,11 @@ properties:
           NewAccountConfig: true # Makes sure this property is defined
     # Prevent both keys from being present, even if one is null/empty
     additionalProperties: false
+  DatabricksConfig:
+    type: object
+    properties: {} # Empty object instead of undefined
+    required: []
+    additionalProperties: false    
 required:
   - AWSConfig
   - PantherAccountConfig
