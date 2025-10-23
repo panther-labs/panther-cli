@@ -86,8 +86,6 @@ func setupDatalake(ctx context.Context, cfg *config.Config, stateManager *state.
 		} else {
 			log.Println("Skipping Snowflake credential bootstrap - already completed")
 		}
-	} else if cfg.IsRedshift() {
-		log.Println("Redshift deployment specified.")
 	}
 
 	log.Printf("Datalake(%s) setup completed successfully.", cfg.GetDatalakeType())
