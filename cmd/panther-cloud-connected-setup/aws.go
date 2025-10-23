@@ -78,11 +78,12 @@ func pollCertificateUntilIssued(
 	isWildcard bool,
 	certType string,
 ) (bool, error) {
-	log.Printf("Auto-registration succeeded for %s certificate. Polling for issuance with exponential backoff...", certType)
+	log.Printf("Polling %s certificate for issuance with exponential backoff...", certType)
 
 	var issued bool
 	operation := func() error {
 		if ctx.Err() != nil {
+			util.LogDebugf("Certificate polling stopped due to context cancellation: %v", ctx.Err())
 			return backoff.Permanent(ctx.Err())
 		}
 
@@ -93,6 +94,7 @@ func pollCertificateUntilIssued(
 		}
 
 		if issued {
+			util.LogDebugf("%s certificate has been issued", certType)
 			return nil
 		}
 
@@ -121,20 +123,9 @@ func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManage
 			log.Println("Force checking panther subdomain certificate status (already marked as issued)")
 		}
 
-		var issued bool
-		var err error
-
-		// Poll if auto-registration succeeded and certificate is not yet issued
-		shouldPoll := certs.PantherSubdomain.AutoRegistrationSucceeded && !certs.PantherSubdomain.IsIssued
-
-		if shouldPoll {
-			issued, err = pollCertificateUntilIssued(
-				ctx, certHelper, certs.PantherSubdomain.CertificateArn, false, "panther",
-			)
-		} else {
-			issued, err = certHelper.IsCertificateIssued(certs.PantherSubdomain.CertificateArn, false)
-		}
-
+		issued, err := pollCertificateUntilIssued(
+			ctx, certHelper, certs.PantherSubdomain.CertificateArn, false, "panther",
+		)
 		if err != nil {
 			return errors.Wrap(err, "failed to check panther subdomain certificate status")
 		}
@@ -160,9 +151,7 @@ func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManage
 				return errors.Wrap(err, "failed to update panther certificate state")
 			}
 			log.Println("Panther subdomain certificate has been issued")
-		} else if forceCheck {
-			log.Println("Panther subdomain certificate is still pending issuance")
-		} else if shouldPoll {
+		} else {
 			log.Println("Panther subdomain certificate is still pending after polling timeout")
 		}
 	}
@@ -173,20 +162,9 @@ func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManage
 			log.Println("Force checking wildcard certificate status (already marked as issued)")
 		}
 
-		var issued bool
-		var err error
-
-		// Poll if auto-registration succeeded and certificate is not yet issued
-		shouldPoll := certs.WildcardSubdomain.AutoRegistrationSucceeded && !certs.WildcardSubdomain.IsIssued
-
-		if shouldPoll {
-			issued, err = pollCertificateUntilIssued(
-				ctx, certHelper, certs.WildcardSubdomain.CertificateArn, true, "wildcard",
-			)
-		} else {
-			issued, err = certHelper.IsCertificateIssued(certs.WildcardSubdomain.CertificateArn, true)
-		}
-
+		issued, err := pollCertificateUntilIssued(
+			ctx, certHelper, certs.WildcardSubdomain.CertificateArn, true, "wildcard",
+		)
 		if err != nil {
 			return errors.Wrap(err, "failed to check wildcard certificate status")
 		}
@@ -212,9 +190,7 @@ func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManage
 				return errors.Wrap(err, "failed to update wildcard certificate state")
 			}
 			log.Println("Wildcard certificate has been issued")
-		} else if forceCheck {
-			log.Println("Wildcard certificate is still pending issuance")
-		} else if shouldPoll {
+		} else {
 			log.Println("Wildcard certificate is still pending after polling timeout")
 		}
 	}
