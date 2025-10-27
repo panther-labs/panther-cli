@@ -73,9 +73,8 @@ func main() {
 		log.Fatalf("failed to setup certificates: %v\n", err)
 	}
 
-	// Setup certificates if not already done or check issuance status
-
-	if err := checkCertificateStatus(ctx, cfg, stateManager); err != nil {
+	// Check certificate issuance status
+	if err := checkCertificateStatus(ctx, cfg, stateManager, a.ForceCheckCertificates); err != nil {
 		log.Fatalf("failed to check certificate status: %v\n", err)
 	}
 

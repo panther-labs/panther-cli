@@ -111,6 +111,7 @@ func (m *Manager) UpdateAWSDeploymentRoleUpdaterState(deployed bool) error {
 func (m *Manager) UpdateCertificateState(
 	certType string,
 	result aws.CertificateRegistrationResult,
+	autoRegResult aws.AutoRegistrationResult,
 	isIssued bool,
 ) error {
 	if !m.state.AWSCertificatesRequested {
@@ -125,7 +126,9 @@ func (m *Manager) UpdateCertificateState(
 			RecordValue: result.ValidationDetails.RecordValue,
 			RecordType:  result.ValidationDetails.RecordType,
 		},
-		IsIssued: isIssued,
+		IsIssued:                  isIssued,
+		AutoRegistrationAttempted: autoRegResult.Attempted,
+		AutoRegistrationSucceeded: autoRegResult.Succeeded,
 	}
 
 	switch certType {

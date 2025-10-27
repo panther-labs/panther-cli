@@ -8,6 +8,7 @@ alias rpccs := run-panther-cloud-connected-setup
 alias t := test
 alias tv := test-verbose
 alias tc := test-coverage
+alias u := deps-upgrade
 
 build: copy-config
     CGO_ENABLED=0 go build -o ./bin/panther-cloud-connected-setup/panther-cloud-connected-setup ./cmd/panther-cloud-connected-setup/

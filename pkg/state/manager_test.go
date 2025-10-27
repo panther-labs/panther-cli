@@ -263,8 +263,13 @@ func TestStateUpdates(t *testing.T) {
 			},
 		}
 
+		autoRegResult := aws.AutoRegistrationResult{
+			Attempted: false,
+			Succeeded: false,
+		}
+
 		// Update panther certificate state
-		err = manager.UpdateCertificateState("panther", certResult, false)
+		err = manager.UpdateCertificateState("panther", certResult, autoRegResult, false)
 		require.NoError(t, err)
 
 		// Verify state
@@ -304,8 +309,13 @@ func TestStateUpdates(t *testing.T) {
 			},
 		}
 
+		wildcardAutoReg := aws.AutoRegistrationResult{
+			Attempted: true,
+			Succeeded: true,
+		}
+
 		// Update wildcard certificate state
-		err = manager.UpdateCertificateState("wildcard", wildcardResult, true)
+		err = manager.UpdateCertificateState("wildcard", wildcardResult, wildcardAutoReg, true)
 		require.NoError(t, err)
 
 		// Verify both certificates are in state
@@ -322,7 +332,7 @@ func TestStateUpdates(t *testing.T) {
 		assert.Equal(t, certResult.CertificateArn, state.AWSCertificatesResults.PantherSubdomain.CertificateArn)
 
 		// Test invalid certificate type
-		err = manager.UpdateCertificateState("invalid", certResult, true)
+		err = manager.UpdateCertificateState("invalid", certResult, autoRegResult, true)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid certificate type")
 	})

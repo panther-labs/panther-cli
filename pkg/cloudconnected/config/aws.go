@@ -67,5 +67,6 @@ type CloudFormationConfig struct {
 }
 
 type DomainCertificateConfiguration struct {
-	PantherSubdomain string `yaml:"PantherSubdomain" validate:"required,fqdn"`
+	PantherSubdomain              string `yaml:"PantherSubdomain"                 validate:"required,fqdn"`
+	AutoRegisterValidationDomains bool   `yaml:"AutoRegisterValidationDomains"    default:"false"`
 }
