@@ -35,6 +35,10 @@ properties:
             type: string
             description: The desired subdomain for your Panther instance (e.g., panther.yourdomain.com).
             pattern: '^([a-zA-Z0-9][a-zA-Z0-9-]*\.)+[a-zA-Z]{2,}$' # Simple domain pattern
+          AutoRegisterValidationDomains:
+            type: boolean
+            description: Whether to automatically register DNS validation records in Route 53 for certificate validation. Requires the domain to be hosted in the same AWS account. Default is false.
+            default: false
         required:
           - PantherSubdomain
     required:

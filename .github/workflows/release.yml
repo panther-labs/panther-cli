@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@8edcb1bdb4e267140fa742c62e395cd74f332709
+        uses: actions/checkout@71cf2267d89c5cb81562390fa70a37fa40b1305e
         with:
           fetch-depth: 0
 
@@ -44,7 +44,7 @@ jobs:
         run: go test -v ./pkg/...
 
       - name: golangci-lint run
-        uses: golangci/golangci-lint-action@1d64cc17c98f6243ff9c45fc39cc6911222133e3
+        uses: golangci/golangci-lint-action@7fe1b22e0c4632d6260fedfafd4b6025ac7418c3
         with:
           args: --timeout 10m --verbose --allow-parallel-runners --max-same-issues 0 --max-issues-per-linter 0
 
@@ -80,7 +80,7 @@ jobs:
         run: git push origin $NEW_TAG
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@a08664b80c0ab417b1babcbf750274aed2018fef
+        uses: goreleaser/goreleaser-action@aab47043d04e2a835021cdb1992c289f33f7f459
         with:
           distribution: goreleaser
           version: latest
