@@ -100,6 +100,7 @@ type OutputDetails struct {
 	PantherEdition            string   `json:"panther_edition"`
 	PantherRegion             string   `json:"panther_region"`
 	IpAddressAllowList        []string `json:"ip_address_allow_list,omitempty"`
+	DatalakeType              string   `json:"datalake_type"`
 
 	AdminUserFirstName string `json:"admin_user_first_name"`
 	AdminUserLastName  string `json:"admin_user_last_name"`
@@ -237,6 +238,7 @@ func (r *Row) createStructuredOutput(cfg *config.Config) OutputDetails {
 		AdminUserLastName:         cfg.PantherAccountConfig.AdminUserLastName,
 		AdminEmail:                cfg.PantherAccountConfig.AdminEmail,
 		IpAddressAllowList:        cfg.PantherAccountConfig.IpAddressAllowList,
+		DatalakeType:              strings.ToLower(cfg.GetDatalakeType()),
 		SnowflakeAccountName:      r.SnowflakeAccountName,
 		SnowflakeAccountURL:       r.SnowflakeAccountURL,
 		SnowflakeEdition:          r.SnowflakeEdition,

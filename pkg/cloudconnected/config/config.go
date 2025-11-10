@@ -30,15 +30,18 @@ func (c *Config) IsSnowflake() bool {
 }
 
 func (c *Config) IsDatabricks() bool {
-	// Databricks doesn't actually have any config. This isn't ideal
-	return !c.IsSnowflake()
+	return c.DatabricksConfig != nil
 }
 
 func (c *Config) GetDatalakeType() string {
 	if c.IsSnowflake() {
 		return "Snowflake"
 	}
-	return "Databricks"
+	if c.IsDatabricks() {
+		return "Databricks"
+	}
+	log.Fatalf("No datalake configuration found.")
+	return ""
 }
 
 func NewConfigFromPath(path string) (*Config, error) {
@@ -85,12 +88,6 @@ func NewConfigFromPath(path string) (*Config, error) {
 
 	if err := cfg.validateConfigStruct(); err != nil {
 		return nil, errors.Wrapf(err, "config validation failed")
-	}
-
-	if cfg.IsSnowflake() && cfg.IsDatabricks() {
-		log.Fatalf(
-			"This configuration is in an impossible state. Please contact your Panther support team and share your config file.",
-		)
 	}
 
 	log.Printf("Config loaded and validated successfully from '%s'", path)
