@@ -1,4 +1,3 @@
 package config
 
-type DatabricksConfig struct {
-}
+type DatabricksConfig struct{}
