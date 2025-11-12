@@ -191,7 +191,20 @@ properties:
           NewAccountConfig: true # Makes sure this property is defined
     # Prevent both keys from being present, even if one is null/empty
     additionalProperties: false
+  DatabricksConfig:
+    type: object
+    properties: {}
+    additionalProperties: false    
 required:
   - AWSConfig
   - PantherAccountConfig
+oneOf:
+  - required: [SnowflakeConfig]
+    properties:
+      SnowflakeConfig: true
+      DatabricksConfig: false
+  - required: [DatabricksConfig]
+    properties:
+      SnowflakeConfig: false
+      DatabricksConfig: true
 additionalProperties: false
