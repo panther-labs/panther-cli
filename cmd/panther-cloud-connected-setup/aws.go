@@ -202,7 +202,7 @@ func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManage
 	// If any certificates are not issued, print the DNS validation instructions
 	if (certs.PantherSubdomain != nil && !certs.PantherSubdomain.IsIssued) ||
 		(certs.WildcardSubdomain != nil && !certs.WildcardSubdomain.IsIssued) {
-		log.Println(
+		util.LogRedln(
 			"Some certificates are still pending validation. Please ensure you have created the following DNS records:",
 		)
 		printDNSValidationInstructions(certs)
@@ -217,13 +217,13 @@ func printDNSValidationInstructions(certs state.CertificateResults) {
 		if len(certs.PantherSubdomain.ValidationDetails.DomainNames) > 0 {
 			domainName = certs.PantherSubdomain.ValidationDetails.DomainNames[0]
 		}
-		log.Printf(
+		util.LogRedf(
 			"For Panther Subdomain (%s), create a DNS record with the following information:\n",
 			domainName,
 		)
-		log.Printf("  Record Type:  %s\n", certs.PantherSubdomain.ValidationDetails.RecordType)
-		log.Printf("  Record Name:  %s\n", certs.PantherSubdomain.ValidationDetails.RecordName)
-		log.Printf("  Record Value: %s\n", certs.PantherSubdomain.ValidationDetails.RecordValue)
+		util.LogRedf("  Record Type:  %s\n", certs.PantherSubdomain.ValidationDetails.RecordType)
+		util.LogRedf("  Record Name:  %s\n", certs.PantherSubdomain.ValidationDetails.RecordName)
+		util.LogRedf("  Record Value: %s\n", certs.PantherSubdomain.ValidationDetails.RecordValue)
 	}
 
 	if certs.WildcardSubdomain != nil {
@@ -231,13 +231,13 @@ func printDNSValidationInstructions(certs state.CertificateResults) {
 		if len(certs.WildcardSubdomain.ValidationDetails.DomainNames) > 0 {
 			domainName = certs.WildcardSubdomain.ValidationDetails.DomainNames[0]
 		}
-		log.Printf(
+		util.LogRedf(
 			"For Wildcard Certificate (%s), create a DNS record with the following information:\n",
 			domainName,
 		)
-		log.Printf("  Record Type:  %s\n", certs.WildcardSubdomain.ValidationDetails.RecordType)
-		log.Printf("  Record Name:  %s\n", certs.WildcardSubdomain.ValidationDetails.RecordName)
-		log.Printf("  Record Value: %s\n", certs.WildcardSubdomain.ValidationDetails.RecordValue)
+		util.LogRedf("  Record Type:  %s\n", certs.WildcardSubdomain.ValidationDetails.RecordType)
+		util.LogRedf("  Record Name:  %s\n", certs.WildcardSubdomain.ValidationDetails.RecordName)
+		util.LogRedf("  Record Value: %s\n", certs.WildcardSubdomain.ValidationDetails.RecordValue)
 	}
 }
 
