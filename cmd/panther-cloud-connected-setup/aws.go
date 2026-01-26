@@ -110,6 +110,24 @@ func pollCertificateUntilIssued(
 }
 
 func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManager *state.Manager, forceCheck bool) error {
+	// Skip polling if AutoRegisterValidationDomains is false (unless force check is explicitly requested)
+	if !cfg.AWSConfig.DomainCertificateConfiguration.AutoRegisterValidationDomains && !forceCheck {
+		log.Println("Skipping certificate status polling - AutoRegisterValidationDomains is false")
+		state := stateManager.GetState()
+		certs := state.AWSCertificatesResults
+
+		// Still print DNS validation instructions if certificates are not issued
+		if (certs.PantherSubdomain != nil && !certs.PantherSubdomain.IsIssued) ||
+			(certs.WildcardSubdomain != nil && !certs.WildcardSubdomain.IsIssued) {
+			util.LogRedln(
+				"Some certificates are still pending validation. Please ensure you have created the following DNS records:",
+			)
+			printDNSValidationInstructions(certs)
+		}
+
+		return nil
+	}
+
 	certHelper, err := aws.NewCertificateRegistrationHelper(ctx, cfg)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize certificate registration helper")
