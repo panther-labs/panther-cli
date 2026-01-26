@@ -71,14 +71,23 @@ func setupCertificates(ctx context.Context, cfg *config.Config, stateManager *st
 
 // pollCertificateUntilIssued polls a certificate until it's issued using exponential backoff
 // Returns true if certificate was issued, false if timeout reached
+// When autoRegistered is false, performs a single check instead of exponential backoff polling
 func pollCertificateUntilIssued(
 	ctx context.Context,
 	certHelper *aws.CertificateRegistrationHelper,
 	certificateArn string,
 	isWildcard bool,
 	certType string,
+	autoRegistered bool,
 ) (bool, error) {
-	log.Printf("Polling %s certificate for issuance with exponential backoff...", certType)
+	var retrier backoff.BackOff
+	if !autoRegistered {
+		log.Printf("Checking %s certificate status", certType)
+		retrier = backoff.WithMaxRetries(util.GetDefaultExponentialBackoffRetrier(), 0)
+	} else {
+		log.Printf("Polling %s certificate for issuance with exponential backoff (auto-registered DNS)...", certType)
+		retrier = util.GetDefaultExponentialBackoffRetrier()
+	}
 
 	var issued bool
 	operation := func() error {
@@ -98,11 +107,18 @@ func pollCertificateUntilIssued(
 			return nil
 		}
 
+		if !autoRegistered {
+			log.Printf("%s certificate is pending - waiting for manual DNS record creation", certType)
+		}
+
 		return errors.Errorf("%s certificate is not yet issued", certType)
 	}
 
-	err := backoff.Retry(operation, util.GetDefaultExponentialBackoffRetrier())
+	err := backoff.Retry(operation, retrier)
 	if err != nil {
+		if !autoRegistered {
+			return false, nil
+		}
 		log.Printf("Polling timeout reached for %s certificate", certType)
 		return false, nil
 	}
@@ -124,7 +140,7 @@ func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManage
 		}
 
 		issued, err := pollCertificateUntilIssued(
-			ctx, certHelper, certs.PantherSubdomain.CertificateArn, false, "panther",
+			ctx, certHelper, certs.PantherSubdomain.CertificateArn, false, "panther", certs.PantherSubdomain.AutoRegistrationSucceeded,
 		)
 		if err != nil {
 			return errors.Wrap(err, "failed to check panther subdomain certificate status")
@@ -152,7 +168,12 @@ func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManage
 			}
 			log.Println("Panther subdomain certificate has been issued")
 		} else {
-			log.Println("Panther subdomain certificate is still pending after polling timeout")
+			if certs.PantherSubdomain.AutoRegistrationSucceeded {
+				log.Println("Panther subdomain certificate is still pending after polling timeout")
+			} else {
+				util.LogRedln("Panther subdomain certificate is pending - manual DNS validation required")
+				util.LogRedln("The certificate will be issued once you create the required DNS record")
+			}
 		}
 	}
 
@@ -163,7 +184,7 @@ func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManage
 		}
 
 		issued, err := pollCertificateUntilIssued(
-			ctx, certHelper, certs.WildcardSubdomain.CertificateArn, true, "wildcard",
+			ctx, certHelper, certs.WildcardSubdomain.CertificateArn, true, "wildcard", certs.WildcardSubdomain.AutoRegistrationSucceeded,
 		)
 		if err != nil {
 			return errors.Wrap(err, "failed to check wildcard certificate status")
@@ -191,7 +212,12 @@ func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManage
 			}
 			log.Println("Wildcard certificate has been issued")
 		} else {
-			log.Println("Wildcard certificate is still pending after polling timeout")
+			if certs.WildcardSubdomain.AutoRegistrationSucceeded {
+				log.Println("Wildcard certificate is still pending after polling timeout")
+			} else {
+				util.LogRedln("Wildcard certificate is pending - manual DNS validation required")
+				util.LogRedln("The certificate will be issued once you create the required DNS record")
+			}
 		}
 	}
 
