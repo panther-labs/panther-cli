@@ -125,10 +125,11 @@ func pollCertificateUntilIssued(
 	return true, nil
 }
 
-func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManager *state.Manager, forceCheck bool) error {
+// returns true if certificates are issued
+func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManager *state.Manager, forceCheck bool) (bool, error) {
 	certHelper, err := aws.NewCertificateRegistrationHelper(ctx, cfg)
 	if err != nil {
-		return errors.Wrap(err, "failed to initialize certificate registration helper")
+		return false, errors.Wrap(err, "failed to initialize certificate registration helper")
 	}
 
 	state := stateManager.GetState()
@@ -143,7 +144,7 @@ func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManage
 			ctx, certHelper, certs.PantherSubdomain.CertificateArn, false, "panther", certs.PantherSubdomain.AutoRegistrationSucceeded,
 		)
 		if err != nil {
-			return errors.Wrap(err, "failed to check panther subdomain certificate status")
+			return false, errors.Wrap(err, "failed to check panther subdomain certificate status")
 		}
 
 		if issued {
@@ -164,7 +165,7 @@ func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManage
 				},
 				true,
 			); err != nil {
-				return errors.Wrap(err, "failed to update panther certificate state")
+				return false, errors.Wrap(err, "failed to update panther certificate state")
 			}
 			log.Println("Panther subdomain certificate has been issued")
 		} else {
@@ -187,7 +188,7 @@ func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManage
 			ctx, certHelper, certs.WildcardSubdomain.CertificateArn, true, "wildcard", certs.WildcardSubdomain.AutoRegistrationSucceeded,
 		)
 		if err != nil {
-			return errors.Wrap(err, "failed to check wildcard certificate status")
+			return false, errors.Wrap(err, "failed to check wildcard certificate status")
 		}
 
 		if issued {
@@ -208,7 +209,7 @@ func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManage
 				},
 				true,
 			); err != nil {
-				return errors.Wrap(err, "failed to update wildcard certificate state")
+				return false, errors.Wrap(err, "failed to update wildcard certificate state")
 			}
 			log.Println("Wildcard certificate has been issued")
 		} else {
@@ -232,9 +233,10 @@ func checkCertificateStatus(ctx context.Context, cfg *config.Config, stateManage
 			"Some certificates are still pending validation. Please ensure you have created the following DNS records:",
 		)
 		printDNSValidationInstructions(certs)
+		return false, nil
 	}
 
-	return nil
+	return true, nil
 }
 
 func printDNSValidationInstructions(certs state.CertificateResults) {

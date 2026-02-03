@@ -74,8 +74,18 @@ func main() {
 	}
 
 	// Check certificate issuance status
-	if err := checkCertificateStatus(ctx, cfg, stateManager, a.ForceCheckCertificates); err != nil {
+	isIssued, err := checkCertificateStatus(ctx, cfg, stateManager, a.ForceCheckCertificates)
+	if err != nil {
 		log.Fatalf("failed to check certificate status: %v\n", err)
+	}
+	if !isIssued {
+		// dont print output of the run if the certs are not issued yet
+		// customer needs to manually create the DNS records per instructions
+		// emitted in checkCertificateStatus. once created the customer can run the
+		// command again which will verify the certs are issued,
+		// and then the output file will be emitted
+		util.LogRedln("Run this program again once the above DNS records have been created")
+		return
 	}
 
 	// show this run's results
