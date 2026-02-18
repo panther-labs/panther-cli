@@ -342,10 +342,10 @@ func setupAWS(ctx context.Context, cfg *config.Config, stateManager *state.Manag
 	return nil
 }
 
-func runReadinessCheck(ctx context.Context, cfg *config.Config, stateManager *state.Manager) error {
+func runReadinessCheck(ctx context.Context, cfg *config.Config, stateManager *state.Manager, force bool) error {
 	currentState := stateManager.GetState()
 
-	if !currentState.AWSReadinessCheckSucceeded {
+	if !currentState.AWSReadinessCheckSucceeded || force {
 		readinessCheck, err := panther.NewReadinessCheck(ctx, cfg.AWSConfig)
 		if err != nil {
 			return errors.Wrap(err, "failed to initialize readiness check")
