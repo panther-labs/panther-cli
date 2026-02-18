@@ -16,7 +16,6 @@ PantherAccountConfig:
   AdminEmail: <YOUR ADMIN USER'S EMAIL>
   Edition: ENTERPRISE
   Region: <YOUR PANTHER REGION> # Format this as an AWS region name - e.g. us-west-2
-  IpAddressAllowList: [] # A list of IP addresses formatted as CIDR blocks that are allowed to access the Panther UI.
 
 # DatabricksConfig is used as a placeholder to satisfy schema validation.
 # Datalake setup is skipped entirely when --only-readiness-check is passed.
