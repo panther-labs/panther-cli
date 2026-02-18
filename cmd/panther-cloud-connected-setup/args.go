@@ -17,6 +17,7 @@ type args struct {
 	SkipAWSReadinessCheck   bool   `arg:"--skip-aws-readiness-check" help:"Skip the AWS readiness check"`
 	SkipDatalakeSetup       bool   `arg:"--skip-datalake-setup"      help:"Skip the datalake setup entirely"`
 	ForceCheckCertificates  bool   `arg:"--force-check-certificates" help:"Force checking certificate issuance status even if already marked as issued"`
+	OnlyReadinessCheck      bool   `arg:"--only-readiness-check"     help:"Run only the AWS readiness check and exit, skipping datalake setup and certificate steps"`
 }
 
 // validateArgs checks that the arguments passed to the program

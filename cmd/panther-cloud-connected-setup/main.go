@@ -51,22 +51,28 @@ func main() {
 	}
 
 	// Setup the Datalake if not already done. Error handling is done in the function.
-	if !a.SkipDatalakeSetup {
+	if !a.SkipDatalakeSetup && !a.OnlyReadinessCheck {
 		if err := setupDatalake(ctx, cfg, stateManager); err != nil {
 			log.Fatalf("failed to setup datalake: %v\n", err)
 		}
+	} else if a.OnlyReadinessCheck {
+		log.Println("Skipping datalake setup - --only-readiness-check specified")
 	} else {
 		log.Println("Skipping datalake setup - --skip-datalake-setup specified")
 	}
 
 	// We allow users to skip the readiness check, whether it ran successfully or not.
 	if !a.SkipAWSReadinessCheck {
-		// Run readiness check if not already done
-		if err := runReadinessCheck(ctx, cfg, stateManager); err != nil {
+		// Run readiness check if not already done (or always if --only-readiness-check)
+		if err := runReadinessCheck(ctx, cfg, stateManager, a.OnlyReadinessCheck); err != nil {
 			log.Fatalf("failed to run readiness check: %v\n", err)
 		}
 	} else {
 		log.Println("Skipping readiness check - --skip-aws-readiness-check specified")
+	}
+
+	if a.OnlyReadinessCheck {
+		return
 	}
 
 	if err := setupCertificates(ctx, cfg, stateManager); err != nil {

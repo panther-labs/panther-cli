@@ -65,6 +65,18 @@ here: [example-config-existing-snowflake-acct.yml](example-config-existing-snowf
 ```
 
 
+#### Run Only the AWS Readiness Check
+
+Use `--only-readiness-check` to invoke the `PantherReadinessCheck` Lambda and exit immediately,
+skipping datalake setup and all certificate steps. This is useful for validating AWS IAM
+permissions and diagnosing issues caused by Service Control Policies (SCPs) or Control Tower
+policies without running the full provisioning flow. The check is always re-run, even if a
+previous run already recorded a passing result.
+
+```bash
+./panther-cloud-connected-setup --config-file config.yml --only-readiness-check
+```
+
 #### Cleaning Local State
 
 ```bash
