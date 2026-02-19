@@ -141,4 +141,4 @@ The following subsection provides specific notes about the expectations the tool
 
 For Panther devs:
 
-If making changes to this repository, make sure to also update the homebrew repository after merge so people downloading this via homebrew can get the latest version
+If making changes to this repository, make sure to also update the [homebrew taps repository](https://github.com/panther-labs/homebrew-taps) after merge so people downloading this via homebrew can get the latest version
