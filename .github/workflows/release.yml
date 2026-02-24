@@ -19,14 +19,14 @@ permissions:
   contents: write
   packages: write
   issues: write
-  pull-requests: write
+  pull-requests: write # for creating PR in homebrew-taps
 
 jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
     outputs:
-      release_tag: ${{ steps.release_tag.outputs.tag }}
+      release_tag: ${{ steps.release_tag.outputs.tag }} #expose value to other jobs
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -90,3 +90,13 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set release tag for homebrew
+        id: release_tag
+        run: |
+          # Use create_tag output when we created the tag (push to main),
+          # otherwise use the ref we're running on (tag push). Exposed as job output release_tag.
+          if [ -n "${{ steps.create_tag.outputs.tag }}" ]; then
+            echo "tag=${{ steps.create_tag.outputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
