@@ -89,6 +89,7 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Set release tag for homebrew
         id: release_tag
         run: |
@@ -99,6 +100,7 @@ jobs:
           else
             echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
           fi
+
   homebrew-taps-pr:  # Opens a PR in homebrew-taps to update the panther-cli formula after a release
     name: Homebrew Taps PR
     runs-on: macos-latest # So util/update-formula.sh (sed -i '') works without changing the script
@@ -119,7 +121,7 @@ jobs:
       - name: Update formula
         working-directory: homebrew-taps
         run: ./util/update-formula.sh "${RELEASE_TAG#v}"
-    
+
       # Commit, push, and create PR only if the script changed files
       - name: Commit, push, and create PR
         working-directory: homebrew-taps
@@ -141,5 +143,5 @@ jobs:
             --base main \
             --head "update-panther-cli-${RELEASE_TAG}" \
             --title "Update panther-cli to ${RELEASE_TAG}" \
-            --body "Automated update from panther-cli release workflow"
+            --body "Automated update from panther-cli release workflow" \
             || echo "PR already exists for ${RELEASE_TAG}, skipping"
