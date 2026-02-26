@@ -19,7 +19,6 @@ permissions:
   contents: write
   packages: write
   issues: write
-  pull-requests: write # for creating PR in homebrew-taps
 
 jobs:
   release:
@@ -121,27 +120,26 @@ jobs:
         working-directory: homebrew-taps
         run: ./util/update-formula.sh "${RELEASE_TAG#v}"
     
-      # Commit only if the script changed files
-      - name: Commit and push
+      # Commit, push, and create PR only if the script changed files
+      - name: Commit, push, and create PR
         working-directory: homebrew-taps
         env:
           GH_TOKEN: ${{ secrets.PANTHER_BOT_AUTOMATION_TOKEN }}
         run: |
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
-          git checkout -b "update-panther-cli-${RELEASE_TAG}"
           git add -A
-          git diff --staged --quiet || git commit -m "Update panther-cli to ${RELEASE_TAG}"
-          git push origin "update-panther-cli-${RELEASE_TAG}"
-      
-      - name: Create PR
-        working-directory: homebrew-taps
-        env:
-          GH_TOKEN: ${{ secrets.PANTHER_BOT_AUTOMATION_TOKEN }}
-        run: |
+          if git diff --staged --quiet; then
+            echo "No formula changes for ${RELEASE_TAG}, skipping PR creation"
+            exit 0
+          fi
+          git checkout -b "update-panther-cli-${RELEASE_TAG}"
+          git commit -m "Update panther-cli to ${RELEASE_TAG}"
+          git push --force-with-lease origin "update-panther-cli-${RELEASE_TAG}"
           gh pr create \
-          --repo panther-labs/homebrew-taps \
-          --base main \
-          --head "update-panther-cli-${RELEASE_TAG}" \
-          --title "Update panther-cli to ${RELEASE_TAG}" \
-          --body "Automated update from panther-cli release workflow"
+            --repo panther-labs/homebrew-taps \
+            --base main \
+            --head "update-panther-cli-${RELEASE_TAG}" \
+            --title "Update panther-cli to ${RELEASE_TAG}" \
+            --body "Automated update from panther-cli release workflow"
+            || echo "PR already exists for ${RELEASE_TAG}, skipping"
