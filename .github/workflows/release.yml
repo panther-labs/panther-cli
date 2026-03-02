@@ -131,6 +131,7 @@ jobs:
           passphrase: ${{ secrets.PANTHER_BOT_GPG_PRIVATE_KEY_PASSPHRASE }}
           git_user_signingkey: true
           git_commit_gpgsign: true
+          workdir: homebrew-taps
 
       # Commit, push, and create PR only if the script changed files
       - name: Commit, push, and create PR
