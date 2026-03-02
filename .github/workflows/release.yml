@@ -12,7 +12,7 @@ on:
       - go.mod
       - go.sum
       - .goreleaser.yaml
-  pull_request: # for testing
+  pull_request: #for testing
   workflow_dispatch:
 
 
