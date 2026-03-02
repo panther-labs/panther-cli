@@ -12,6 +12,7 @@ on:
       - go.mod
       - go.sum
       - .goreleaser.yaml
+  pull_request: # for testing
   workflow_dispatch:
 
 
@@ -24,6 +25,8 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.release_tag.outputs.tag }} # expose value to other jobs
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
@@ -87,3 +90,59 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set release tag for homebrew
+        id: release_tag
+        run: |
+          # Use create_tag output when we created the tag (push to main),
+          # otherwise use the ref we're running on (tag push). Exposed as job output release_tag.
+          if [ -n "${{ steps.create_tag.outputs.tag }}" ]; then
+            echo "tag=${{ steps.create_tag.outputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+
+  homebrew-taps-pr:  # Opens a PR in homebrew-taps to update the panther-cli formula after a release
+    name: Homebrew Taps PR
+    runs-on: macos-latest # So util/update-formula.sh (sed -i '') works without changing the script
+    needs: release
+    env:
+      RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
+    steps:
+      # Clone homebrew-taps so we can run its update script and push a branch using the bot token 
+      - name: Checkout homebrew-taps
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          repository: panther-labs/homebrew-taps
+          ref: main
+          token: ${{ secrets.PANTHER_BOT_AUTOMATION_TOKEN }}
+          path: homebrew-taps
+
+      # Homebrew script expects version without leading "v" (e.g. 0.0.29). ${RELEASE_TAG#v} strips the "v"
+      - name: Update formula
+        working-directory: homebrew-taps
+        run: ./util/update-formula.sh "${RELEASE_TAG#v}"
+
+      # Commit, push, and create PR only if the script changed files
+      - name: Commit, push, and create PR
+        working-directory: homebrew-taps
+        env:
+          GH_TOKEN: ${{ secrets.PANTHER_BOT_AUTOMATION_TOKEN }}
+        run: |
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No formula changes for ${RELEASE_TAG}, skipping PR creation"
+            exit 0
+          fi
+          git checkout -b "update-panther-cli-${RELEASE_TAG}"
+          git commit -m "Update panther-cli to ${RELEASE_TAG}"
+          git push --force-with-lease origin "update-panther-cli-${RELEASE_TAG}"
+          gh pr create \
+            --repo panther-labs/homebrew-taps \
+            --base main \
+            --head "update-panther-cli-${RELEASE_TAG}" \
+            --title "Update panther-cli to ${RELEASE_TAG}" \
+            --body "Automated update from panther-cli release workflow" \
+            || echo "PR already exists for ${RELEASE_TAG}, skipping"
