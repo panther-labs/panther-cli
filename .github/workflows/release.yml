@@ -92,13 +92,16 @@ jobs:
 
       - name: Set release tag for homebrew
         id: release_tag
+        env:
+          CREATE_TAG: ${{ steps.create_tag.outputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
           # Use create_tag output when we created the tag (push to main),
           # otherwise use the ref we're running on (tag push). Exposed as job output release_tag.
-          if [ -n "${{ steps.create_tag.outputs.tag }}" ]; then
-            echo "tag=${{ steps.create_tag.outputs.tag }}" >> $GITHUB_OUTPUT
+          if [ -n "${CREATE_TAG}" ]; then
+            echo "tag=${CREATE_TAG}" >> $GITHUB_OUTPUT
           else
-            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "tag=${REF_NAME}" >> $GITHUB_OUTPUT
           fi
 
   homebrew-taps-pr:  # Opens a PR in homebrew-taps to update the panther-cli formula after a release
