@@ -111,7 +111,7 @@ jobs:
     env:
       RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
     steps:
-      # Clone homebrew-taps so we can run its update script and push a branch using the bot token 
+      # Clone homebrew-taps so we can run its update script and push a branch using the bot token
       - name: Checkout homebrew-taps
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
@@ -143,12 +143,12 @@ jobs:
         run: |
           git config --global user.email "github-service-account-automation@panther.io"
           git config --global user.name "panther-bot-automation"
+          git checkout -b "update-panther-cli-${RELEASE_TAG}"
           git add -A
           if git diff --staged --quiet; then
             echo "No formula changes for ${RELEASE_TAG}, skipping PR creation"
             exit 0
           fi
-          git checkout -b "update-panther-cli-${RELEASE_TAG}"
           git commit -m "Update panther-cli to ${RELEASE_TAG}"
           git push --force-with-lease origin "update-panther-cli-${RELEASE_TAG}"
           gh pr create \
