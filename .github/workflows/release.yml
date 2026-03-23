@@ -15,19 +15,20 @@ on:
   workflow_dispatch:
 
 
-permissions:
-  contents: write
-  packages: write
-  issues: write
+permissions: {}
 
 jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      issues: write
     outputs:
       release_tag: ${{ steps.release_tag.outputs.tag }} # expose value to other jobs
     steps:
-      - name: Checkout
+      - name: Checkout # zizmor: ignore[artipacked] workflow needs credentials to push tags
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
@@ -36,7 +37,7 @@ jobs:
         uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5
         with:
           go-version: '>=1.24'
-          cache: true
+          cache: true # zizmor: ignore[cache-poisoning] all triggers require write access
 
       - name: Install dependencies
         run: |
@@ -108,11 +109,13 @@ jobs:
     name: Homebrew Taps PR
     runs-on: macos-latest # So util/update-formula.sh (sed -i '') works without changing the script
     needs: release
+    permissions:
+      contents: read
     env:
       RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
     steps:
       # Clone homebrew-taps so we can run its update script and push a branch using the bot token
-      - name: Checkout homebrew-taps
+      - name: Checkout homebrew-taps # zizmor: ignore[artipacked] needs credentials for git push
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           repository: panther-labs/homebrew-taps

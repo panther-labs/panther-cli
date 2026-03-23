@@ -10,3 +10,5 @@ updates:
       - "@panther-labs/admin"
     assignees:
       - "@panther-labs/admin"
+    cooldown:
+      default-days: 7
