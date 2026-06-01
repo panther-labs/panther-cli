@@ -36,7 +36,7 @@ func Test_RSAPEMKeys(t *testing.T) {
 		assert.Equal(t, "RSA PUBLIC KEY", block.Type)
 		decodedKey, err := x509.ParsePKIXPublicKey(block.Bytes)
 		require.NoError(t, err)
-		decodedRSA, ok := (decodedKey).(*rsa.PublicKey)
+		decodedRSA, ok := decodedKey.(*rsa.PublicKey)
 		require.True(t, ok)
 		assert.Equal(t, pubkey, *decodedRSA)
 	})
