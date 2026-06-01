@@ -133,7 +133,8 @@ func (c *SnowflakeConnectionConfig) GetDSN() (string, error) {
 
 	dsn, err := gosnowflake.DSN(connConfig)
 	if err != nil {
-		return "", errors.Wrapf(err,
+		return "", errors.Wrapf(
+			err,
 			"failed to generate Snowflake DSN for credentials: gosnowflake.Config: %s",
 			pp.Sprint(c),
 		)

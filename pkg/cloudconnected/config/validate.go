@@ -15,10 +15,12 @@ func init() {
 		validate.RegisterValidation("validAcctName", validateSnowflakeAccountName),
 		"couldn't register validAcctName validation",
 	)
-	util.Must(validate.RegisterValidation("validAdminName", validateAdminName),
+	util.Must(
+		validate.RegisterValidation("validAdminName", validateAdminName),
 		"couldn't register validAdminName validation",
 	)
-	util.Must(validate.RegisterValidation("validPantherRegion", validatePantherRegion),
+	util.Must(
+		validate.RegisterValidation("validPantherRegion", validatePantherRegion),
 		"couldn't register validPantherRegion validation",
 	)
 	validate.RegisterStructValidation(validateEditionsMatch, Config{})

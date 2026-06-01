@@ -57,13 +57,15 @@ func TestReadinessCheckResults(t *testing.T) {
 		assert.Len(t, deserializedResults.DeploymentRoleReadinessResults, 2)
 
 		// Check first result
-		assert.Equal(t,
+		assert.Equal(
+			t,
 			results.DeploymentRoleReadinessResults[0]["message"],
 			deserializedResults.DeploymentRoleReadinessResults[0]["message"],
 		)
 
 		// Check second result
-		assert.Equal(t,
+		assert.Equal(
+			t,
 			results.DeploymentRoleReadinessResults[1]["severity"],
 			deserializedResults.DeploymentRoleReadinessResults[1]["severity"],
 		)
