@@ -176,7 +176,8 @@ func (cfg *Config) setupSnowflakeConfig() (err error) {
 			privateKey, err := os.ReadFile(cfg.SnowflakeConfig.NewAccountConfig.OrgConfig.OrgAdminPrivateKeyPath)
 			if err != nil {
 				// Wrap error for better context
-				return errors.Wrapf(err,
+				return errors.Wrapf(
+					err,
 					"failed to read OrgAdminPrivateKey from path '%s'",
 					cfg.SnowflakeConfig.NewAccountConfig.OrgConfig.OrgAdminPrivateKeyPath,
 				)
