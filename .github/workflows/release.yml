@@ -29,7 +29,7 @@ jobs:
       release_tag: ${{ steps.release_tag.outputs.tag }} # expose value to other jobs
     steps:
       - name: Checkout # zizmor: ignore[artipacked] workflow needs credentials to push tags
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
 
@@ -116,7 +116,7 @@ jobs:
     steps:
       # Clone homebrew-taps so we can run its update script and push a branch using the bot token
       - name: Checkout homebrew-taps # zizmor: ignore[artipacked] needs credentials for git push
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: panther-labs/homebrew-taps
           ref: main
