@@ -47,7 +47,7 @@ jobs:
         run: go test -v ./pkg/...
 
       - name: golangci-lint run
-        uses: golangci/golangci-lint-action@f8208ee75bbfe589bb30d9a5f8646f8df0f1bca3
+        uses: golangci/golangci-lint-action@80a417e6155c5cdf37eb2391cf7785a64fbb9ae0
         with:
           args: --timeout 10m --verbose --allow-parallel-runners --max-same-issues 0 --max-issues-per-linter 0
 
