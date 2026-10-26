@@ -127,7 +127,7 @@ jobs:
         id: github-automation
         uses: ./panther-cli/.github/actions/github-automation-token
         with:
-          broker_url: ${{ secrets.PANTHER_GITHUB_TOKEN_BROKER_URL }}
+          token_url: ${{ secrets.GITHUB_APP_TOKEN_URL }}
           repository: panther-labs/homebrew-taps
           permissions: '{"contents":"write","pull_requests":"write"}'
 
