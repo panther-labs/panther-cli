@@ -109,27 +109,34 @@ jobs:
     name: Homebrew Taps PR
     runs-on: macos-latest # So util/update-formula.sh (sed -i '') works without changing the script
     needs: release
-    permissions: {}
+    permissions:
+      contents: read
+      id-token: write
     env:
       RELEASE_TAG: ${{ needs.release.outputs.release_tag }}
     steps:
-      - name: Generate GitHub App token
-        id: app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+      # Local action must be on disk before use and through its post hook (token revoke), so keep it in its own path
+      - name: Checkout token action
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          client-id: Iv23lie716nKFq0B7AyL
-          private-key: ${{ secrets.PANTHER_BOT_APP_PRIVATE_KEY }}
-          owner: panther-labs
-          repositories: homebrew-taps
-          permission-contents: write
-          permission-pull-requests: write
+          path: panther-cli
+          sparse-checkout: .github/actions/github-automation-token
+          persist-credentials: false
+
+      - name: Request GitHub automation token
+        id: github-automation
+        uses: ./panther-cli/.github/actions/github-automation-token
+        with:
+          token_url: ${{ secrets.APP_TOKEN_SERVICE_URL }}
+          repository: panther-labs/homebrew-taps
+          permissions: '{"contents":"write","pull_requests":"write"}'
 
       - name: Checkout homebrew-taps
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: panther-labs/homebrew-taps
           ref: main
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ steps.github-automation.outputs.token }}
           path: homebrew-taps
           persist-credentials: false
 
@@ -141,7 +148,7 @@ jobs:
       - name: Create Homebrew formula PR
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1
         with:
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ steps.github-automation.outputs.token }}
           path: homebrew-taps
           base: main
           branch: update-panther-cli-${{ env.RELEASE_TAG }}
